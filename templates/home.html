@@ -31,5 +31,28 @@
         </div>
     </div>
 
+    <script>
+        // Check if all processes have equal counters and reset if they do
+        function checkAndResetAllCounters() {
+            const counters = [];
+            for (let i = 1; i <= 9; i++) {
+                const value = localStorage.getItem(`process${i}_counter`);
+                counters.push(value !== null ? parseInt(value) : 0);
+            }
+            
+            // Check if all counters are equal and not all zero
+            if (counters.length > 0 && counters.every(val => val === counters[0]) && counters[0] > 0) {
+                // Reset all counters to 0
+                for (let i = 1; i <= 9; i++) {
+                    localStorage.setItem(`process${i}_counter`, '0');
+                }
+                console.log('All counters were equal, reset to 0');
+            }
+        }
+
+        // Check when page loads
+        window.addEventListener('load', checkAndResetAllCounters);
+    </script>
+
 </body>
 </html>

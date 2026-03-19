@@ -193,8 +193,50 @@
         let seconds = 0;
         let timerInterval = null;
         let statusCount = 0;
-        let hasFirstStartBeenCounted = false;
         const maxSeconds = 50;
+        const processNumber = 2;
+        let hasEverStarted = false; // Track if timer has ever been started from initial state
+
+        // Load saved counter when page loads
+        function loadCounter() {
+            const saved = localStorage.getItem(`process${processNumber}_counter`);
+            if (saved !== null) {
+                statusCount = parseInt(saved);
+                updateStatusNumber();
+            }
+        }
+
+        // Save counter to localStorage
+        function saveCounter() {
+            localStorage.setItem(`process${processNumber}_counter`, statusCount.toString());
+        }
+
+        // Check if all processes have equal counters and reset if they do
+        function checkAndResetAllCounters() {
+            const counters = [];
+            for (let i = 1; i <= 9; i++) {
+                const value = localStorage.getItem(`process${i}_counter`);
+                counters.push(value !== null ? parseInt(value) : 0);
+            }
+            
+            // Check if all counters are equal
+            if (counters.length > 0 && counters.every(val => val === counters[0])) {
+                // Reset all counters to 0
+                for (let i = 1; i <= 9; i++) {
+                    localStorage.setItem(`process${i}_counter`, '0');
+                }
+                if (processNumber === 1) {
+                    statusCount = 0;
+                    updateStatusNumber();
+                }
+            }
+        }
+
+        // Save counter before page unloads (when user navigates away)
+        window.addEventListener('beforeunload', saveCounter);
+
+        // Load counter when page loads
+        window.addEventListener('load', loadCounter);
 
         function formatTime(totalSeconds) {
             let mins = Math.floor(totalSeconds / 60);
@@ -229,10 +271,12 @@
                 document.getElementById("timer").innerText = formatTime(seconds);
             }
 
-            if (!hasFirstStartBeenCounted) {
+            // Only increment counter on the VERY FIRST start from initial state
+            if (!hasEverStarted) {
                 statusCount++;
-                hasFirstStartBeenCounted = true;
                 updateStatusNumber();
+                saveCounter();
+                hasEverStarted = true;
             }
 
             updateStatus("STATUS: RUNNING", "running");
@@ -256,8 +300,12 @@
 
             clearInterval(timerInterval);
             timerInterval = null;
+            
+            // Increment counter on every STOP
             statusCount++;
             updateStatusNumber();
+            saveCounter();
+            
             seconds = 0;
             document.getElementById("timer").innerText = formatTime(seconds);
             updateStatus("STATUS: STOPPED", "stopped");
