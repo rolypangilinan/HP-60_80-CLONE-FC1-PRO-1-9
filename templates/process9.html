@@ -195,7 +195,7 @@
         let statusCount = 0;
         const maxSeconds = 50;
         const processNumber = 9;
-        let hasEverStarted = false; // Track if timer has ever been started from initial state
+        let hasEverStarted = false; // Track if START has ever been clicked
 
         // Load saved counter when page loads
         function loadCounter() {
@@ -204,11 +204,41 @@
                 statusCount = parseInt(saved);
                 updateStatusNumber();
             }
+            // Check if this specific process has been opened before
+            const processOpenedKey = `process${processNumber}_opened`;
+            const hasProcessOpened = localStorage.getItem(processOpenedKey);
+            if (hasProcessOpened === null) {
+                // First time this specific process is opened
+                hasEverStarted = false;
+                localStorage.setItem(processOpenedKey, 'true');
+            } else {
+                // This process has been opened before
+                hasEverStarted = true;
+            }
         }
 
         // Save counter to localStorage
         function saveCounter() {
             localStorage.setItem(`process${processNumber}_counter`, statusCount.toString());
+        }
+
+        // Get the counter value from the previous process
+        function getPreviousProcessCounter() {
+            if (processNumber === 1) return null; // Process 9 has no previous process
+            const prevCounter = localStorage.getItem(`process${processNumber - 1}_counter`);
+            return prevCounter !== null ? parseInt(prevCounter) : 0;
+        }
+
+        // Check if current process can run the next counter
+        function canRunNextCounter() {
+            if (processNumber === 1) return true; // Process 9 can always run
+            const prevCounter = getPreviousProcessCounter();
+            return statusCount < prevCounter;
+        }
+
+        // Show warning popup
+        function showWarning(message) {
+            alert(message);
         }
 
         // Check if all processes have equal counters and reset if they do
@@ -266,12 +296,19 @@
                 return;
             }
 
+            // Check if this process can run the next counter (for processes 2-9)
+            if (processNumber > 1 && !canRunNextCounter()) {
+                const prevCounter = getPreviousProcessCounter();
+                showWarning(`THERE IS NO EXISTING COUNTER ${statusCount + 1} AT PROCESS ${processNumber - 1}`);
+                return;
+            }
+
             if (seconds >= maxSeconds) {
                 seconds = 0;
                 document.getElementById("timer").innerText = formatTime(seconds);
             }
 
-            // Only increment counter on the VERY FIRST start from initial state
+            // Only increment counter on the VERY FIRST click of START button
             if (!hasEverStarted) {
                 statusCount++;
                 updateStatusNumber();
