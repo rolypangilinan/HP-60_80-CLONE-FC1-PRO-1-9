@@ -213,7 +213,10 @@
                 localStorage.setItem(processOpenedKey, 'true');
             } else {
                 // This process has been opened before
-                hasEverStarted = true;
+                // Check if START button has ever been clicked for this process
+                const hasStartedKey = `process${processNumber}_has_started`;
+                const hasStarted = localStorage.getItem(hasStartedKey);
+                hasEverStarted = hasStarted === 'true';
             }
         }
 
@@ -241,6 +244,22 @@
             alert(message);
         }
 
+        // Send command to Arduino Mega
+        function sendArduinoCommand(action) {
+            fetch(`/arduino/${action}/${processNumber}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log(`Arduino ${action} command sent successfully for Process ${processNumber} on pin ${data.pin}`);
+                    } else {
+                        console.error(`Failed to send Arduino ${action} command:`, data.error || 'Unknown error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error communicating with Arduino:', error);
+                });
+        }
+
         // Check if all processes have equal counters and reset if they do
         function checkAndResetAllCounters() {
             const counters = [];
@@ -266,7 +285,11 @@
         window.addEventListener('beforeunload', saveCounter);
 
         // Load counter when page loads
-        window.addEventListener('load', loadCounter);
+        window.addEventListener('load', () => {
+            loadCounter();
+            // Store this process as the last visited
+            localStorage.setItem('last_visited_process', processNumber.toString());
+        });
 
         function formatTime(totalSeconds) {
             let mins = Math.floor(totalSeconds / 60);
@@ -314,7 +337,12 @@
                 updateStatusNumber();
                 saveCounter();
                 hasEverStarted = true;
+                // Save that START button has been clicked for this process
+                localStorage.setItem(`process${processNumber}_has_started`, 'true');
             }
+
+            // Send command to Arduino Mega
+            sendArduinoCommand('start');
 
             updateStatus("STATUS: RUNNING", "running");
 
@@ -331,17 +359,26 @@
         }
 
         function stopTimer() {
-            if (timerInterval === null) {
+            // Allow STOP button to work even if timer reached maxSeconds
+            // Check if timer is running or if status shows "TARGET REACHED"
+            const currentStatus = document.getElementById("processStatus").innerText;
+            if (timerInterval === null && !currentStatus.includes("TARGET REACHED")) {
                 return;
             }
 
-            clearInterval(timerInterval);
-            timerInterval = null;
+            // Clear timer if it's still running
+            if (timerInterval !== null) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
             
             // Increment counter on every STOP
             statusCount++;
             updateStatusNumber();
             saveCounter();
+            
+            // Send command to Arduino Mega
+            sendArduinoCommand('stop');
             
             seconds = 0;
             document.getElementById("timer").innerText = formatTime(seconds);
