@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Process 6 Dashboard</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        body {
+            background-color: #f4f7fb;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+
+        .dashboard-header {
+            background: linear-gradient(90deg, #0d6efd, #0b5ed7);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 0 0 20px 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .indicator-box {
+            width: 100px;
+            height: 100px;
+            background-color: white;
+            color: #198754;
+            border-radius: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 48px;
+            font-weight: bold;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+            margin-left: auto;
+        }
+
+        .main-card {
+            background-color: white;
+            border-radius: 25px;
+            padding: 40px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            margin-top: 30px;
+        }
+
+        .timer-box {
+            background-color: #212529;
+            color: #00ff7f;
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.35);
+        }
+
+        .timer-label {
+            font-size: 22px;
+            color: #adb5bd;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        .timer-value {
+            font-size: 80px;
+            font-weight: bold;
+            letter-spacing: 3px;
+        }
+
+        .st-box {
+            background-color: #e9f2ff;
+            border-left: 8px solid #0d6efd;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            height: 100%;
+        }
+
+        .st-title {
+            font-size: 22px;
+            font-weight: bold;
+            color: #0d6efd;
+        }
+
+        .st-value {
+            font-size: 38px;
+            font-weight: bold;
+            color: #212529;
+            margin-top: 10px;
+        }
+
+        .status-box {
+            margin-top: 25px;
+            background-color: #fff3cd;
+            border-left: 8px solid #ffc107;
+            border-radius: 15px;
+            padding: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #664d03;
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            padding: 0 25px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+
+        .controls button,
+        .controls a {
+            pointer-events: auto;
+        }
+
+        .btn-control {
+            min-width: 170px;
+            font-size: 24px;
+            font-weight: bold;
+            padding: 14px 24px;
+            border-radius: 14px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4), 0 3px 6px rgba(0,0,0,0.3);
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none;
+            position: relative;
+            transform: translateY(0);
+            cursor: pointer;
+        }
+
+        .btn-control:hover {
+            box-shadow: 0 12px 30px rgba(0,0,0,0.45), 0 4px 8px rgba(0,0,0,0.35);
+            transform: translateY(-3px) scale(1.02);
+        }
+
+        .btn-control:active {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2), 0 1px 2px rgba(0,0,0,0.15);
+            transform: translateY(3px) scale(0.98);
+            transition: all 0.05s ease;
+        }
+
+        .top-actions {
+            margin-top: 20px;
+        }
+
+        .running {
+            color: #198754 !important;
+        }
+
+        .stopped {
+            color: #dc3545 !important;
+        }
+
+        .done {
+            color: #0d6efd !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container-fluid dashboard-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="mb-1">Process 6</h1>
+                <p class="mb-0">Cycle Time Monitoring Dashboard</p>
+            </div>
+            <div class="col-md-4 d-flex justify-content-md-end justify-content-start mt-3 mt-md-0">
+                <div class="indicator-box" id="statusNumber">0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="top-actions">
+            <a href="/" class="btn btn-secondary">Back to Home</a>
+        </div>
+
+        <div class="main-card">
+            <div class="row g-4 align-items-stretch">
+                <div class="col-lg-8">
+                    <div class="timer-box">
+                        <div class="timer-label">ELAPSED TIME</div>
+                        <div class="timer-value" id="timer">00:00</div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <div class="st-box">
+                        <div class="st-title">ST</div>
+                        <div class="st-value">50 SEC</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-box" id="processStatus">
+                STATUS: IDLE
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn btn-success btn-control" onclick="startTimer()">START</button>
+        <button class="btn btn-danger btn-control" onclick="stopTimer()">STOP</button>
+    </div>
+
+    <script>
+        let seconds = 0;
+        let timerInterval = null;
+        let statusCount = 0;
+        const maxSeconds = 50;
+        const processNumber = 6;
+        let hasEverStarted = false; // Track if START has ever been clicked
+
+        // Load saved counter when page loads
+        function loadCounter() {
+            const saved = localStorage.getItem(`process${processNumber}_counter`);
+            if (saved !== null) {
+                statusCount = parseInt(saved);
+                updateStatusNumber();
+            }
+            // Check if this specific process has been opened before
+            const processOpenedKey = `process${processNumber}_opened`;
+            const hasProcessOpened = localStorage.getItem(processOpenedKey);
+            if (hasProcessOpened === null) {
+                // First time this specific process is opened
+                hasEverStarted = false;
+                localStorage.setItem(processOpenedKey, 'true');
+            } else {
+                // This process has been opened before
+                // Check if START button has ever been clicked for this process
+                const hasStartedKey = `process${processNumber}_has_started`;
+                const hasStarted = localStorage.getItem(hasStartedKey);
+                hasEverStarted = hasStarted === 'true';
+            }
+        }
+
+        // Save counter to localStorage
+        function saveCounter() {
+            localStorage.setItem(`process${processNumber}_counter`, statusCount.toString());
+        }
+
+        // Get the counter value from the previous process
+        function getPreviousProcessCounter() {
+            if (processNumber === 1) return null; // Process 6 has no previous process
+            const prevCounter = localStorage.getItem(`process${processNumber - 1}_counter`);
+            return prevCounter !== null ? parseInt(prevCounter) : 0;
+        }
+
+        // Check if current process can run the next counter
+        function canRunNextCounter() {
+            if (processNumber === 1) return true; // Process 6 can always run
+            const prevCounter = getPreviousProcessCounter();
+            return statusCount < prevCounter;
+        }
+
+        // Show warning popup
+        function showWarning(message) {
+            alert(message);
+        }
+
+        // Send command to Arduino Mega
+        function sendArduinoCommand(action) {
+            fetch(`/arduino/${action}/${processNumber}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log(`Arduino ${action} command sent successfully for Process ${processNumber} on pin ${data.pin}`);
+                    } else {
+                        console.error(`Failed to send Arduino ${action} command:`, data.error || 'Unknown error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error communicating with Arduino:', error);
+                });
+        }
+
+        // Check if all processes have equal counters and reset if they do
+        function checkAndResetAllCounters() {
+            const counters = [];
+            for (let i = 1; i <= 9; i++) {
+                const value = localStorage.getItem(`process${i}_counter`);
+                counters.push(value !== null ? parseInt(value) : 0);
+            }
+            
+            // Check if all counters are equal
+            if (counters.length > 0 && counters.every(val => val === counters[0])) {
+                // Reset all counters to 0
+                for (let i = 1; i <= 9; i++) {
+                    localStorage.setItem(`process${i}_counter`, '0');
+                    // Reset the has_started flags so START can trigger again on first opening
+                    localStorage.removeItem(`process${i}_has_started`);
+                }
+                if (processNumber === 1) {
+                    statusCount = 0;
+                    updateStatusNumber();
+                }
+                console.log('All counters were equal, reset to 0 and cleared has_started flags');
+            }
+        }
+
+        // Save counter before page unloads (when user navigates away)
+        window.addEventListener('beforeunload', saveCounter);
+
+        // Load counter when page loads
+        window.addEventListener('load', () => {
+            loadCounter();
+            // Store this process as the last visited
+            localStorage.setItem('last_visited_process', processNumber.toString());
+        });
+
+        function formatTime(totalSeconds) {
+            let mins = Math.floor(totalSeconds / 60);
+            let secs = totalSeconds % 60;
+
+            mins = mins < 10 ? "0" + mins : mins;
+            secs = secs < 10 ? "0" + secs : secs;
+
+            return `${mins}:${secs}`;
+        }
+
+        function updateStatus(text, className) {
+            const statusBox = document.getElementById("processStatus");
+            statusBox.innerText = text;
+            statusBox.classList.remove("running", "stopped", "done");
+            if (className) {
+                statusBox.classList.add(className);
+            }
+        }
+
+        function updateStatusNumber() {
+            document.getElementById("statusNumber").innerText = statusCount;
+        }
+
+        function startTimer() {
+            if (timerInterval !== null) {
+                return;
+            }
+
+            // Check if this process can run the next counter (for processes 2-9)
+            if (processNumber > 1 && !canRunNextCounter()) {
+                const prevCounter = getPreviousProcessCounter();
+                showWarning(`THERE IS NO EXISTING COUNTER ${statusCount + 1} AT PROCESS ${processNumber - 1}`);
+                return;
+            }
+
+            if (seconds >= maxSeconds) {
+                seconds = 0;
+                document.getElementById("timer").innerText = formatTime(seconds);
+            }
+
+            // Only increment counter on the VERY FIRST click of START button
+            if (!hasEverStarted) {
+                statusCount++;
+                updateStatusNumber();
+                saveCounter();
+                hasEverStarted = true;
+                // Save that START button has been clicked for this process
+                localStorage.setItem(`process${processNumber}_has_started`, 'true');
+            }
+
+            // Send command to Arduino Mega
+            sendArduinoCommand('start');
+
+            updateStatus("STATUS: RUNNING", "running");
+
+            timerInterval = setInterval(() => {
+                seconds++;
+                document.getElementById("timer").innerText = formatTime(seconds);
+
+                if (seconds >= maxSeconds) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                    updateStatus("STATUS: TARGET REACHED (50 SEC)", "done");
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            // Allow STOP button to work even if timer reached maxSeconds
+            // Check if timer is running or if status shows "TARGET REACHED"
+            const currentStatus = document.getElementById("processStatus").innerText;
+            if (timerInterval === null && !currentStatus.includes("TARGET REACHED")) {
+                return;
+            }
+
+            // Clear timer if it's still running
+            if (timerInterval !== null) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            
+            // Increment counter on every STOP
+            statusCount++;
+            updateStatusNumber();
+            saveCounter();
+            
+            // Send command to Arduino Mega
+            sendArduinoCommand('stop');
+            
+            seconds = 0;
+            document.getElementById("timer").innerText = formatTime(seconds);
+            updateStatus("STATUS: STOPPED", "stopped");
+        }
+    </script>
+
+</body>
+</html>

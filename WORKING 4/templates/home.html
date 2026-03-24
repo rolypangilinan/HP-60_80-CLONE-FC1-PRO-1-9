@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cycle Time Monitoring</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        .process-btn {
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.25), 0 3px 8px rgba(0,0,0,0.18);
+            border: none;
+            position: relative;
+            overflow: hidden;
+            z-index: 10;
+        }
+
+        .process-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.6);
+            transform: translate(-50%, -50%);
+            transition: width 0.8s, height 0.8s;
+            z-index: 1;
+        }
+
+        .process-btn::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 100%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .process-btn:hover {
+            transform: scale(1.3) translateY(-8px);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.4), 0 10px 20px rgba(0,0,0,0.3);
+            z-index: 100;
+        }
+
+        .process-btn:hover::after {
+            opacity: 1;
+        }
+
+        .process-btn:active {
+            transform: scale(0.75) translateY(12px);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2), inset 0 4px 12px rgba(0,0,0,0.4);
+            transition: all 0.08s ease;
+            z-index: 100;
+        }
+
+        .process-btn:active::before {
+            width: 400px;
+            height: 400px;
+        }
+
+        .process-btn.last-clicked {
+            animation: ultraDeepPress 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            background: linear-gradient(135deg, #0052a3, #003366) !important;
+            border: 3px solid #002244 !important;
+            z-index: 1000;
+        }
+
+        @keyframes ultraDeepPress {
+            0% {
+                transform: scale(1) translateY(0) rotateX(0deg);
+                box-shadow: 0 8px 25px rgba(0,0,0,0.25);
+                filter: brightness(1);
+            }
+            20% {
+                transform: scale(0.7) translateY(15px) rotateX(15deg);
+                box-shadow: 0 1px 6px rgba(0,0,0,0.15), inset 0 8px 20px rgba(0,0,0,0.5);
+                filter: brightness(0.7);
+            }
+            40% {
+                transform: scale(0.72) translateY(12px) rotateX(10deg);
+                box-shadow: 0 2px 8px rgba(0,0,0,0.18), inset 0 6px 16px rgba(0,0,0,0.45);
+                filter: brightness(0.75);
+            }
+            60% {
+                transform: scale(0.85) translateY(6px) rotateX(5deg);
+                box-shadow: 0 4px 15px rgba(0,0,0,0.22), inset 0 4px 10px rgba(0,0,0,0.35);
+                filter: brightness(0.85);
+            }
+            80% {
+                transform: scale(0.95) translateY(2px) rotateX(2deg);
+                box-shadow: 0 6px 20px rgba(0,0,0,0.24), inset 0 2px 6px rgba(0,0,0,0.25);
+                filter: brightness(0.95);
+            }
+            100% {
+                transform: scale(1) translateY(0) rotateX(0deg);
+                box-shadow: 0 8px 25px rgba(0,0,0,0.25);
+                filter: brightness(1);
+            }
+        }
+
+        .process-btn.pressed-indicator {
+            position: relative;
+        }
+
+        .process-btn.pressed-indicator::before {
+            content: '';
+            position: absolute;
+            top: -4px;
+            left: -4px;
+            right: -4px;
+            bottom: -4px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #ffeaa7, #dfe6e9);
+            background-size: 300% 300%;
+            border-radius: 18px;
+            z-index: -1;
+            animation: gradientFlow 3s ease infinite;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        .process-btn.pressed-indicator.active::before {
+            opacity: 1;
+        }
+
+        @keyframes gradientFlow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .process-btn.depressed {
+            animation: depressEffect 0.6s ease-out;
+        }
+
+        @keyframes depressEffect {
+            0% {
+                transform: scale(1) translateY(0);
+                box-shadow: 0 8px 25px rgba(0,0,0,0.25);
+            }
+            50% {
+                transform: scale(0.6) translateY(20px);
+                box-shadow: 0 0 8px rgba(0,0,0,0.1), inset 0 10px 25px rgba(0,0,0,0.6);
+            }
+            100% {
+                transform: scale(1) translateY(0);
+                box-shadow: 0 8px 25px rgba(0,0,0,0.25);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container-fluid p-5 bg-primary text-white text-center">
+        <h1>Cycle Time Monitoring</h1>
+        <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Itaque corrupti excepturi tempora? Dolores facilis autem perferendis qui corporis deserunt.</p>
+    </div>
+
+    <div class="container mt-4">
+        <h2 class="mb-4">Home</h2>
+
+        <div class="d-flex flex-wrap gap-2 mb-4">
+            <a href="/process1" class="btn btn-primary process-btn">Process 1</a>
+            <a href="/process2" class="btn btn-primary process-btn">Process 2</a>
+            <a href="/process3" class="btn btn-primary process-btn">Process 3</a>
+            <a href="/process4" class="btn btn-primary process-btn">Process 4</a>
+            <a href="/process5" class="btn btn-primary process-btn">Process 5</a>
+            <a href="/process6" class="btn btn-primary process-btn">Process 6</a>
+            <a href="/process7" class="btn btn-primary process-btn">Process 7</a>
+            <a href="/process8" class="btn btn-primary process-btn">Process 8</a>
+            <a href="/process9" class="btn btn-primary process-btn">Process 9</a>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-danger" onclick="resetAllCounters()">RESET ALL COUNTERS</button>
+        </div>
+    </div>
+
+    <script>
+        // Reset all counters to 0
+        function resetAllCounters() {
+            if (confirm('Are you sure you want to reset all counters to 0?')) {
+                for (let i = 1; i <= 9; i++) {
+                    localStorage.setItem(`process${i}_counter`, '0');
+                    // Reset individual process flags so START can trigger again on first opening
+                    localStorage.removeItem(`process${i}_opened`);
+                    // Reset the has_started flags so START can trigger again on first opening
+                    localStorage.removeItem(`process${i}_has_started`);
+                }
+                alert('All counters have been reset to 0');
+                console.log('All counters manually reset to 0 and cleared has_started flags');
+            }
+        }
+
+        // Check if all processes have equal counters and reset if they do
+        function checkAndResetAllCounters() {
+            const counters = [];
+            for (let i = 1; i <= 9; i++) {
+                const value = localStorage.getItem(`process${i}_counter`);
+                counters.push(value !== null ? parseInt(value) : 0);
+            }
+            
+            // Check if all counters are equal and not all zero
+            if (counters.length > 0 && counters.every(val => val === counters[0]) && counters[0] > 0) {
+                // Reset all counters to 0
+                for (let i = 1; i <= 9; i++) {
+                    localStorage.setItem(`process${i}_counter`, '0');
+                    // Reset the has_started flags so START can trigger again on first opening
+                    localStorage.removeItem(`process${i}_has_started`);
+                }
+                console.log('All counters were equal, reset to 0 and cleared has_started flags');
+            }
+        }
+
+        // Track process button clicks with ultra-deep press feedback
+        function trackProcessClick(processNumber, buttonElement) {
+            // Remove previous tracking states
+            document.querySelectorAll('.process-btn').forEach(btn => {
+                btn.classList.remove('last-clicked', 'pressed-indicator', 'active', 'depressed');
+            });
+
+            // Add ultra-deep press animation
+            buttonElement.classList.add('last-clicked');
+            
+            // Add pressed indicator with gradient border
+            buttonElement.classList.add('pressed-indicator', 'active');
+            
+            // Store the last clicked process
+            localStorage.setItem('last_visited_process', processNumber.toString());
+            
+            // Add secondary depression effect
+            setTimeout(() => {
+                buttonElement.classList.add('depressed');
+            }, 600);
+            
+            // Remove the animation classes after animations complete
+            setTimeout(() => {
+                buttonElement.classList.remove('last-clicked', 'depressed');
+                // Keep the pressed-indicator active permanently as a mark
+            }, 1200);
+        }
+
+        // Add click event listeners to all process buttons
+        function addProcessButtonListeners() {
+            const processButtons = document.querySelectorAll('.process-btn');
+            processButtons.forEach((button, index) => {
+                const processNumber = index + 1;
+                
+                button.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    trackProcessClick(processNumber, button);
+                    
+                    // Navigate to the process page after the animation
+                    setTimeout(() => {
+                        window.location.href = button.href;
+                    }, 600);
+                });
+            });
+        }
+
+        // Restore pressed state on page load (permanent mark - immediate)
+        function restorePressedState() {
+            const lastVisited = localStorage.getItem('last_visited_process');
+            if (lastVisited) {
+                const processNumber = parseInt(lastVisited);
+                const button = document.querySelector(`a[href="/process${processNumber}"]`);
+                if (button) {
+                    // Add permanent pressed indicator immediately - no delay
+                    button.classList.add('pressed-indicator', 'active');
+                }
+            }
+        }
+
+        // Check when page loads
+        window.addEventListener('load', () => {
+            checkAndResetAllCounters();
+            addProcessButtonListeners();
+            restorePressedState();
+        });
+    </script>
+
+</body>
+</html>
