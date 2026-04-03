@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Standard Time Configuration - Cycle Time Monitoring</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: white;
+            font-size: 36px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .process-list {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .add-process-container {
+            text-align: center;
+            margin-top: 30px;
+        }
+        
+        .add-process-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 25px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 0 10px;
+        }
+        
+        .add-process-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+        
+        .delete-process-btn {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 0 10px;
+        }
+        
+        .delete-process-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+        
+        .delete-mode-btn {
+            background: #ffc107;
+            color: #212529;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 20px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-left: 10px;
+        }
+        
+        .delete-mode-btn:hover {
+            background: #e0a800;
+            transform: translateY(-2px);
+        }
+        
+        .process-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .process-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+        
+        .process-checkbox {
+            display: none;
+            margin-right: 15px;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        .process-item.delete-mode .process-checkbox {
+            display: block;
+        }
+        
+        .process-item.delete-mode {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+        }
+        
+        .process-item.delete-mode:hover {
+            background: #ffeaa7;
+        }
+        
+        .process-content {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+        
+        .process-label {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            min-width: 150px;
+        }
+        
+        .process-time {
+            font-size: 20px;
+            color: #667eea;
+            font-weight: bold;
+            margin: 0 20px;
+            flex: 1;
+            text-align: center;
+        }
+        
+        .edit-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .edit-btn:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+        
+        .delete-selected-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .delete-selected-btn:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+        
+        .delete-selected-btn.show {
+            display: inline-block;
+        }
+        
+        .back-btn {
+            display: inline-block;
+            background: #6c757d;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: bold;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .back-btn:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+        
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 400px;
+            text-align: center;
+        }
+        
+        .modal h3 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .modal input {
+            width: 100%;
+            padding: 10px;
+            font-size: 18px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .modal-btn {
+            padding: 10px 30px;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .save-btn {
+            background: #28a745;
+            color: white;
+        }
+        
+        .save-btn:hover {
+            background: #218838;
+        }
+        
+        .cancel-btn {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .cancel-btn:hover {
+            background: #c82333;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #666;
+            padding: 50px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>STANDARD TIME CONFIGURATION</h1>
+    </div>
+    
+    <div class="container">
+        <div class="process-list" id="processList">
+            <div class="loading">Loading standard times...</div>
+        </div>
+        
+        <div class="add-process-container">
+            <button class="add-process-btn" onclick="showAddProcessModal()">
+                + Add Process
+            </button>
+            <button class="delete-process-btn" onclick="toggleDeleteMode()">
+                🗑️ Delete Process
+            </button>
+        </div>
+        
+        <div style="text-align: center;">
+            <button class="delete-selected-btn" id="deleteSelectedBtn" onclick="deleteSelectedProcesses()">
+                Delete Selected Processes
+            </button>
+        </div>
+        
+        <div style="text-align: center;">
+            <a href="/settings" class="back-btn">Back to Settings</a>
+        </div>
+    </div>
+    
+    <!-- Edit Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle">Edit Standard Time</h3>
+            <input type="number" id="timeInput" min="1" max="999" value="50">
+            <div class="modal-buttons">
+                <button class="modal-btn save-btn" onclick="saveTime()">Save</button>
+                <button class="modal-btn cancel-btn" onclick="closeEditModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentProcessNo = null;
+        let standardTimes = [];
+        let deleteMode = false;
+        
+        // Load standard times on page load
+        window.onload = function() {
+            loadStandardTimes();
+        };
+        
+        function loadStandardTimes() {
+            fetch('/api/get_standard_times')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        standardTimes = data.standard_times;
+                        displayProcesses();
+                    } else {
+                        alert('Failed to load standard times');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error loading standard times');
+                });
+        }
+        
+        function displayProcesses() {
+            const processList = document.getElementById('processList');
+            processList.innerHTML = '';
+            
+            standardTimes.forEach(process => {
+                const processItem = document.createElement('div');
+                processItem.className = 'process-item';
+                if (deleteMode) {
+                    processItem.classList.add('delete-mode');
+                }
+                
+                processItem.innerHTML = `
+                    <input type="checkbox" class="process-checkbox" value="${process.process_no}">
+                    <div class="process-content">
+                        <span class="process-label">Process ${process.process_no}</span>
+                        <span class="process-time">${process.standard_time} sec</span>
+                    </div>
+                    <button class="edit-btn" onclick="showEditModal(${process.process_no}, ${process.standard_time})">Edit</button>
+                `;
+                processList.appendChild(processItem);
+            });
+            
+            updateDeleteButton();
+        }
+        
+        function toggleDeleteMode() {
+            deleteMode = !deleteMode;
+            const processItems = document.querySelectorAll('.process-item');
+            const deleteBtn = document.querySelector('.delete-process-btn');
+            
+            if (deleteMode) {
+                processItems.forEach(item => item.classList.add('delete-mode'));
+                deleteBtn.textContent = 'Cancel Delete';
+                deleteBtn.style.background = 'linear-gradient(135deg, #6c757d 0%, #5a6268 100%)';
+            } else {
+                processItems.forEach(item => {
+                    item.classList.remove('delete-mode');
+                    const checkbox = item.querySelector('.process-checkbox');
+                    if (checkbox) checkbox.checked = false;
+                });
+                deleteBtn.textContent = '🗑️ Delete Process';
+                deleteBtn.style.background = 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
+                document.getElementById('deleteSelectedBtn').classList.remove('show');
+            }
+        }
+        
+        function updateDeleteButton() {
+            const checkboxes = document.querySelectorAll('.process-checkbox:checked');
+            const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+            
+            if (checkboxes.length > 0 && deleteMode) {
+                deleteSelectedBtn.classList.add('show');
+                deleteSelectedBtn.textContent = `Delete Selected Processes (${checkboxes.length})`;
+            } else {
+                deleteSelectedBtn.classList.remove('show');
+            }
+        }
+        
+        function deleteSelectedProcesses() {
+            const checkboxes = document.querySelectorAll('.process-checkbox:checked');
+            const processesToDelete = Array.from(checkboxes).map(cb => parseInt(cb.value));
+            
+            if (processesToDelete.length === 0) {
+                alert('Please select at least one process to delete');
+                return;
+            }
+            
+            if (confirm(`Are you sure you want to delete ${processesToDelete.length} process(es)?\n\nProcesses: ${processesToDelete.join(', ')}`)) {
+                // Delete each process
+                let deletePromises = processesToDelete.map(processNo => 
+                    fetch('/api/delete_process', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ process_no: processNo })
+                    })
+                );
+                
+                Promise.all(deletePromises)
+                    .then(responses => Promise.all(responses.map(r => r.json())))
+                    .then(results => {
+                        const failed = results.filter(r => !r.success);
+                        if (failed.length === 0) {
+                            // All deletions successful
+                            loadStandardTimes();
+                            toggleDeleteMode();
+                            alert('Processes deleted successfully');
+                        } else {
+                            alert(`Failed to delete ${failed.length} process(es)`);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error deleting processes');
+                    });
+            }
+        }
+        
+        // Add event listener for checkbox changes
+        document.addEventListener('change', function(e) {
+            if (e.target.classList.contains('process-checkbox')) {
+                updateDeleteButton();
+            }
+        });
+        
+        function showEditModal(processNo, currentTime) {
+            currentProcessNo = processNo;
+            document.getElementById('modalTitle').textContent = `Edit Process ${processNo} Standard Time`;
+            document.getElementById('timeInput').value = currentTime;
+            document.getElementById('editModal').style.display = 'block';
+        }
+        
+        function showAddProcessModal() {
+            const nextProcessNo = standardTimes.length > 0 ? 
+                Math.max(...standardTimes.map(p => p.process_no)) + 1 : 1;
+            currentProcessNo = null;
+            document.getElementById('modalTitle').textContent = `Add Process ${nextProcessNo}`;
+            document.getElementById('timeInput').value = 50;
+            document.getElementById('editModal').style.display = 'block';
+        }
+        
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+            currentProcessNo = null;
+        }
+        
+        function saveTime() {
+            const newTime = document.getElementById('timeInput').value;
+            
+            if (!newTime || newTime < 1 || newTime > 999) {
+                alert('Please enter a valid time between 1 and 999 seconds');
+                return;
+            }
+            
+            if (currentProcessNo) {
+                // Update existing process
+                fetch('/api/update_standard_time', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        process_no: currentProcessNo,
+                        standard_time: newTime
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update local data
+                        const process = standardTimes.find(p => p.process_no === currentProcessNo);
+                        if (process) {
+                            process.standard_time = newTime;
+                        }
+                        displayProcesses();
+                        closeEditModal();
+                    } else {
+                        alert('Failed to update standard time');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error updating standard time');
+                });
+            } else {
+                // Add new process
+                fetch('/api/add_process', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        standard_time: newTime
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Reload all data
+                        loadStandardTimes();
+                        closeEditModal();
+                    } else {
+                        alert('Failed to add process');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error adding process');
+                });
+            }
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('editModal');
+            if (event.target == modal) {
+                closeEditModal();
+            }
+        }
+    </script>
+</body>
+</html>
