@@ -1,0 +1,1711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Process 5 Dashboard</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<style>
+
+body {
+
+background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+min-height: 100vh;
+
+font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+margin: 0;
+
+padding: 0;
+
+}
+
+.dashboard-header {
+
+background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+
+color: white;
+
+padding: 30px 40px;
+
+border-radius: 0 0 30px 30px;
+
+box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+
+position: relative;
+
+overflow: hidden;
+
+}
+
+.dashboard-header::before {
+
+content: '';
+
+position: absolute;
+
+top: 0;
+
+left: -100%;
+
+width: 100%;
+
+height: 100%;
+
+background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+
+animation: shimmer 3s infinite;
+
+}
+
+@keyframes shimmer {
+
+0% { left: -100%; }
+
+100% { left: 100%; }
+
+}
+
+.indicator-box {
+
+width: 140px;
+
+height: 140px;
+
+background: linear-gradient(135deg, #00ff7f, #00cc66);
+
+color: white;
+
+border-radius: 25px;
+
+display: flex;
+
+justify-content: center;
+
+align-items: center;
+
+font-size: 54px;
+
+font-weight: bold;
+
+box-shadow: 0 10px 25px rgba(0,255,127,0.4), 0 5px 10px rgba(0,0,0,0.2);
+
+margin-left: auto;
+
+position: relative;
+
+overflow: hidden;
+
+transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+}
+
+.kitting-label {
+
+font-size: 18px;
+
+font-weight: 600;
+
+color: #2d3748;
+
+text-transform: uppercase;
+
+letter-spacing: 0.5px;
+
+margin-right: 15px;
+
+white-space: nowrap;
+
+background: rgba(255, 255, 255, 0.9);
+
+padding: 6px 12px;
+
+border-radius: 6px;
+
+box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+
+}
+
+.main-counter {
+
+font-size: 54px;
+
+font-weight: bold;
+
+line-height: 1;
+
+}
+
+.indicator-box:hover {
+
+transform: translateY(-5px) scale(1.05);
+
+box-shadow: 0 15px 35px rgba(0,255,127,0.5), 0 8px 15px rgba(0,0,0,0.3);
+
+}
+
+.indicator-box::after {
+
+content: '';
+
+position: absolute;
+
+top: 0;
+
+left: 0;
+
+right: 0;
+
+bottom: 0;
+
+background: radial-gradient(circle at center, rgba(255,255,255,0.3) 0%, transparent 70%);
+
+opacity: 0;
+
+transition: opacity 0.3s;
+
+}
+
+.indicator-box:hover::after {
+
+opacity: 1;
+
+}
+
+.main-card {
+
+background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.9));
+
+backdrop-filter: blur(10px);
+
+border-radius: 30px;
+
+padding: 50px;
+
+box-shadow: 0 20px 40px rgba(0,0,0,0.1), 0 10px 20px rgba(0,0,0,0.05);
+
+margin-top: 40px;
+
+border: 1px solid rgba(255,255,255,0.2);
+
+position: relative;
+
+overflow: hidden;
+
+}
+
+.main-card::before {
+
+content: '';
+
+position: absolute;
+
+top: 0;
+
+left: 0;
+
+right: 0;
+
+height: 4px;
+
+background: linear-gradient(90deg, #667eea, #764ba2, #f093fb, #f5576c);
+
+background-size: 300% 300%;
+
+animation: gradient 3s ease infinite;
+
+}
+
+@keyframes gradient {
+
+0% { background-position: 0% 50%; }
+
+50% { background-position: 100% 50%; }
+
+100% { background-position: 0% 50%; }
+
+}
+
+.timer-box {
+
+background: linear-gradient(135deg, #1a1a2e, #16213e);
+
+color: #00ff7f;
+
+border-radius: 25px;
+
+padding: 40px;
+
+text-align: center;
+
+box-shadow: inset 0 5px 15px rgba(0,0,0,0.5), 0 10px 25px rgba(0,0,0,0.2);
+
+position: relative;
+
+overflow: hidden;
+
+border: 2px solid rgba(0,255,127,0.2);
+
+}
+
+.timer-box::before {
+
+content: '';
+
+position: absolute;
+
+top: 0;
+
+left: -100%;
+
+width: 100%;
+
+height: 100%;
+
+background: linear-gradient(90deg, transparent, rgba(0,255,127,0.1), transparent);
+
+animation: timerShimmer 2s infinite;
+
+}
+
+@keyframes timerShimmer {
+
+0% { left: -100%; }
+
+100% { left: 100%; }
+
+}
+
+.timer-label {
+
+font-size: 26px;
+
+color: #00ff7f;
+
+font-weight: 600;
+
+text-transform: uppercase;
+
+letter-spacing: 2px;
+
+margin-bottom: 15px;
+
+text-shadow: 0 0 10px rgba(0,255,127,0.5);
+
+}
+
+.timer-value {
+
+font-size: 64px;
+
+font-weight: bold;
+
+font-family: 'Courier New', monospace;
+
+text-shadow: 0 0 20px rgba(0,255,127,0.8);
+
+letter-spacing: 4px;
+
+}
+
+.st-box {
+
+background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+
+color: white;
+
+border-radius: 25px;
+
+padding: 40px;
+
+text-align: center;
+
+box-shadow: 0 10px 25px rgba(255,107,107,0.4), 0 5px 10px rgba(0,0,0,0.2);
+
+position: relative;
+
+overflow: hidden;
+
+transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+}
+
+.st-box:hover {
+
+transform: translateY(-5px) scale(1.02);
+
+box-shadow: 0 15px 35px rgba(255,107,107,0.5), 0 8px 15px rgba(0,0,0,0.3);
+
+}
+
+.st-box::before {
+
+content: '';
+
+position: absolute;
+
+top: 0;
+
+left: 0;
+
+right: 0;
+
+bottom: 0;
+
+background: radial-gradient(circle at center, rgba(255,255,255,0.2) 0%, transparent 70%);
+
+opacity: 0;
+
+transition: opacity 0.3s;
+
+}
+
+.st-box:hover::before {
+
+opacity: 1;
+
+}
+
+.st-title {
+
+font-size: 32px;
+
+font-weight: bold;
+
+margin-bottom: 10px;
+
+text-transform: uppercase;
+
+letter-spacing: 3px;
+
+}
+
+.st-value {
+
+font-size: 36px;
+
+font-weight: bold;
+
+text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+
+}
+
+.status-box {
+
+background: linear-gradient(135deg, #4a5568, #2d3748);
+
+color: white;
+
+border-radius: 20px;
+
+padding: 25px;
+
+text-align: center;
+
+margin-top: 30px;
+
+font-size: 28px;
+
+font-weight: bold;
+
+text-transform: uppercase;
+
+letter-spacing: 2px;
+
+box-shadow: 0 8px 20px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.1);
+
+position: relative;
+
+overflow: hidden;
+
+border: 2px solid rgba(255,255,255,0.1);
+
+}
+
+.status-box::before {
+
+content: '';
+
+position: absolute;
+
+top: 0;
+
+left: -100%;
+
+width: 100%;
+
+height: 100%;
+
+background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+
+animation: statusShimmer 4s infinite;
+
+}
+
+@keyframes statusShimmer {
+
+0% { left: -100%; }
+
+100% { left: 100%; }
+
+}
+
+.controls {
+
+text-align: center;
+
+margin-top: 40px;
+
+display: flex;
+
+justify-content: center;
+
+gap: 30px;
+
+flex-wrap: wrap;
+
+}
+
+.btn-control {
+
+min-width: 220px;
+
+min-height: 100px;
+
+font-size: 32px;
+
+font-weight: 800;
+
+padding: 20px 32px;
+
+border-radius: 20px;
+
+box-shadow: 0 12px 32px rgba(0,0,0,0.3), 0 6px 12px rgba(0,0,0,0.2);
+
+transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+border: none;
+
+position: relative;
+
+transform: translateY(0);
+
+cursor: pointer;
+
+text-transform: uppercase;
+
+letter-spacing: 2px;
+
+overflow: hidden;
+
+}
+
+.btn-control::before {
+
+content: '';
+
+position: absolute;
+
+top: 0;
+
+left: -100%;
+
+width: 100%;
+
+height: 100%;
+
+background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+
+transition: left 0.6s;
+
+}
+
+.btn-control:hover::before {
+
+left: 100%;
+
+}
+
+.btn-control:hover {
+
+transform: translateY(-5px) scale(1.05);
+
+box-shadow: 0 15px 35px rgba(0,0,0,0.4), 0 8px 15px rgba(0,0,0,0.3);
+
+}
+
+.btn-control:active {
+
+transform: translateY(-2px) scale(1.02);
+
+box-shadow: 0 8px 20px rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.2);
+
+}
+
+.btn-success {
+
+background: linear-gradient(135deg, #00b894, #00a085);
+
+color: white;
+
+}
+
+.btn-ng {
+
+background: linear-gradient(135deg, #ee5a24, #d63031) !important;
+
+border: none;
+
+color: white;
+
+font-weight: 900;
+
+}
+
+.btn-danger {
+
+background: linear-gradient(135deg, #ee5a24, #d63031);
+
+color: white;
+
+}
+
+.btn-secondary {
+
+background: linear-gradient(135deg, #636e72, #2d3436);
+
+color: white;
+
+min-width: 200px;
+
+min-height: 60px;
+
+font-size: 20px;
+
+padding: 12px 24px;
+
+}
+
+.top-actions {
+
+margin-top: 30px;
+
+display: flex;
+
+align-items: center;
+
+flex-wrap: wrap;
+
+gap: 10px;
+
+}
+
+.operator-section {
+
+margin-left: auto;
+
+display: flex;
+
+align-items: center;
+
+gap: 10px;
+
+}
+
+.operator-label {
+
+font-size: 22px;
+
+font-weight: 800;
+
+color: white;
+
+text-transform: uppercase;
+
+letter-spacing: 1px;
+
+}
+
+.operator-input {
+
+width: 200px;
+
+height: 45px;
+
+border: 2px solid white;
+
+background: transparent;
+
+color: white;
+
+font-size: 16px;
+
+font-weight: bold;
+
+padding: 5px 10px;
+
+text-align: center;
+
+outline: none;
+
+}
+
+.modal {
+
+display: none;
+
+position: fixed;
+
+z-index: 1000;
+
+left: 0;
+
+top: 0;
+
+width: 100%;
+
+height: 100%;
+
+background-color: rgba(0,0,0,0.5);
+
+backdrop-filter: blur(5px);
+
+}
+
+.modal-content {
+
+background: linear-gradient(135deg, #ffffff, #f8f9fa);
+
+margin: 10% auto;
+
+padding: 40px;
+
+border-radius: 20px;
+
+width: 90%;
+
+max-width: 500px;
+
+box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+
+text-align: center;
+
+position: relative;
+
+}
+
+.modal-title {
+
+font-size: 28px;
+
+font-weight: bold;
+
+margin-bottom: 30px;
+
+color: #2d3748;
+
+text-transform: uppercase;
+
+letter-spacing: 2px;
+
+}
+
+.reason-dropdown {
+
+width: 100%;
+
+padding: 15px;
+
+font-size: 18px;
+
+border: 2px solid #e2e8f0;
+
+border-radius: 10px;
+
+background: white;
+
+margin-bottom: 30px;
+
+cursor: pointer;
+
+transition: border-color 0.3s;
+
+}
+
+.reason-dropdown:focus {
+
+outline: none;
+
+border-color: #667eea;
+
+}
+
+.modal-buttons {
+
+display: grid;
+
+grid-template-columns: 1fr 1fr;
+
+gap: 15px;
+
+justify-content: center;
+
+margin-top: 30px;
+
+}
+
+.modal-btn {
+
+padding: 12px 20px;
+
+font-size: 16px;
+
+font-weight: bold;
+
+border: none;
+
+border-radius: 10px;
+
+cursor: pointer;
+
+transition: all 0.3s;
+
+text-transform: uppercase;
+
+letter-spacing: 1px;
+
+}
+
+.modal-submit {
+
+background: linear-gradient(135deg, #00b894, #00a085);
+
+color: white;
+
+}
+
+.modal-others {
+
+background: linear-gradient(135deg, #6c5ce7, #5f3dc4);
+
+color: white;
+
+}
+
+.modal-add {
+
+background: linear-gradient(135deg, #fdcb6e, #f39c12);
+
+color: white;
+
+}
+
+.modal-back {
+
+background: linear-gradient(135deg, #636e72, #2d3436);
+
+color: white;
+
+}
+
+.modal-btn:hover {
+
+transform: translateY(-2px);
+
+box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+
+}
+
+@media (max-width: 768px) {
+
+.main-card {
+
+padding: 30px;
+
+margin-top: 30px;
+
+}
+
+.timer-value {
+
+font-size: 48px;
+
+}
+
+.st-value {
+
+font-size: 28px;
+
+}
+
+.status-box {
+
+font-size: 22px;
+
+padding: 20px;
+
+}
+
+.btn-control {
+
+min-width: 160px;
+
+font-size: 22px;
+
+padding: 15px 25px;
+
+}
+
+.controls {
+
+gap: 20px;
+
+}
+
+}
+
+.process-title-header {
+
+color: white;
+
+font-size: 32px;
+
+font-weight: 700;
+
+letter-spacing: 1px;
+
+text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container-fluid dashboard-header">
+
+<div class="row align-items-center">
+
+<div class="col-md-3">
+
+<h1 class="mb-1">Process 5</h1>
+
+<p class="mb-0">Cycle Time Monitoring Dashboard</p>
+
+</div>
+
+<div class="col-md-5 text-center d-flex align-items-center justify-content-center">
+
+<h2 class="process-title-header mb-0">Lower Housing Fastening</h2>
+
+</div>
+
+<div class="col-md-4 d-flex justify-content-md-end justify-content-start mt-3 mt-md-0">
+
+<div class="d-flex align-items-center">
+
+<div class="kitting-label">Kitting No.</div>
+
+<div class="indicator-box" id="statusNumber">
+
+<div class="main-counter">0</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="container">
+
+<div class="top-actions">
+
+<a href="/" class="btn btn-secondary btn-control">Back to Home</a>
+
+<button class="btn btn-danger btn-control" onclick="openLineoutModal()">LINEOUT</button>
+
+<button class="btn btn-ng btn-control" onclick="handleNG()">NG</button>
+
+<div class="operator-section">
+
+<span class="operator-label">OPERATOR:</span>
+
+<input type="text" class="operator-input" id="operatorInput" placeholder="" readonly>
+
+</div>
+
+</div>
+
+<div class="main-card">
+
+<div class="row g-4 align-items-stretch">
+
+<div class="col-lg-8">
+
+<div class="timer-box">
+
+<div class="timer-label">ELAPSED TIME</div>
+
+<div class="timer-value" id="timer">00:00</div>
+
+</div>
+
+</div>
+
+<div class="col-lg-4">
+
+<div class="st-box">
+
+<div class="st-title">ST</div>
+
+<div class="st-value" id="stValue">-- MIN</div>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="status-box" id="processStatus">
+
+STATUS: IDLE
+
+</div>
+
+</div>
+
+</div>
+
+<div class="controls">
+
+<button class="btn btn-success btn-control" onclick="startTimer()">START</button>
+
+<button class="btn btn-danger btn-control" onclick="stopTimer()">STOP</button>
+
+</div>
+
+<!-- Lineout Modal Window -->
+
+<div id="lineoutModal" class="modal">
+
+<div class="modal-content">
+
+<h2 class="modal-title">LINE OUT</h2>
+
+<select class="reason-dropdown" id="reasonSelect">
+
+<option value="">Select a reason...</option>
+
+<option value="NG PRESSURE">NG PRESSURE</option>
+
+<option value="LEAK">LEAK</option>
+
+<option value="LW">LW</option>
+
+<option value="LAV">LAV</option>
+
+<option value="LCP">LCP</option>
+
+<option value="LA">LA</option>
+
+<option value="HW">HW</option>
+
+<option value="HAV">HAV</option>
+
+<option value="HCP">HCP</option>
+
+<option value="HA">HA</option>
+
+</select>
+
+<div class="modal-buttons">
+
+<button class="modal-btn modal-submit" onclick="submitLineout()">Submit</button>
+
+<button class="modal-btn modal-others" onclick="showOthersInput()">Others</button>
+
+<button class="modal-btn modal-add" onclick="addDropdownItem()">Add Drop Down List</button>
+
+<button class="modal-btn modal-back" onclick="closeLineoutModal()">Back</button>
+
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+let seconds = 0;
+
+let timerInterval = null;
+
+let statusCount = 0;
+
+let ngDetectedCounter = null; // Track the counter that was detected during NG
+
+let maxSeconds = 88;
+
+const processNumber = 5;
+
+let hasEverStarted = false; // Track if START has ever been clicked
+
+// Load saved counter when page loads
+
+function loadCounter() {
+
+const saved = localStorage.getItem(`process${processNumber}_counter`);
+
+if (saved !== null) {
+
+statusCount = parseInt(saved);
+
+updateStatusNumber();
+
+}
+
+// Check if this specific process has been opened before
+
+const processOpenedKey = `process${processNumber}_opened`;
+
+const hasProcessOpened = localStorage.getItem(processOpenedKey);
+
+if (hasProcessOpened === null) {
+
+// First time this specific process is opened
+
+hasEverStarted = false;
+
+localStorage.setItem(processOpenedKey, 'true');
+
+} else {
+
+// This process has been opened before
+
+// Check if START button has ever been clicked for this process
+
+const hasStartedKey = `process${processNumber}_has_started`;
+
+const hasStarted = localStorage.getItem(hasStartedKey);
+
+hasEverStarted = hasStarted === 'true';
+
+}
+
+}
+
+// Save counter to localStorage
+
+function saveCounter() {
+
+localStorage.setItem(`process${processNumber}_counter`, statusCount.toString());
+
+}
+
+// Update status number display
+
+function updateStatusNumber() {
+
+const statusNumber = document.querySelector(".main-counter");
+
+if (statusNumber) {
+
+statusNumber.innerText = statusCount;
+
+}
+
+}
+
+// Check if current counter is blocked for this process
+
+function isCounterBlocked(counter) {
+
+const blockedKey = `process${processNumber}_blocked_counters`;
+
+const blockedCounters = JSON.parse(localStorage.getItem(blockedKey) || '[]');
+
+return blockedCounters.includes(counter);
+
+}
+
+// Check if current process can run the next counter
+
+function canRunNextCounter() {
+
+const prevCounter = getPreviousProcessCounter();
+
+return prevCounter >= statusCount;
+
+}
+
+// Get previous process counter
+
+function getPreviousProcessCounter() {
+
+if (processNumber === 1) return 0; // Process 1 has no previous process
+
+const prevCounter = localStorage.getItem(`process${processNumber - 1}_counter`);
+
+return prevCounter ? parseInt(prevCounter) : 0;
+
+}
+
+// Show warning message
+
+function showWarning(message) {
+
+alert(message);
+
+}
+
+function startTimer() {
+
+if (timerInterval) return; // Prevent multiple timers
+
+// Skip any blocked counters (NG from previous process)
+
+while (isCounterBlocked(statusCount)) {
+
+console.log(`Counter ${statusCount} is blocked (NG from previous process), skipping.`);
+
+statusCount++;
+
+updateStatusNumber();
+
+saveCounter();
+
+}
+
+// Check if current process can run the next counter (must not exceed previous process)
+
+if (!canRunNextCounter()) {
+
+const prevCounter = getPreviousProcessCounter();
+
+showWarning(`Can't run Process ${processNumber} because kitting ${statusCount + 1} is not available at Process ${processNumber - 1}`);
+
+return;
+
+}
+
+if (seconds >= maxSeconds) {
+
+seconds = 0;
+
+document.getElementById("timer").innerText = formatTime(seconds);
+
+}
+
+// Increment counter on every START press
+
+const originalCount = statusCount;
+
+statusCount++;
+
+// Skip any blocked counters (NG from previous process)
+
+while (isCounterBlocked(statusCount)) {
+
+console.log(`Counter ${statusCount} is blocked (NG from previous process), skipping.`);
+
+statusCount++;
+
+}
+
+// Re-check: previous process must have completed this counter after incrementing
+
+if (!canRunNextCounter()) {
+
+statusCount = originalCount;
+
+updateStatusNumber();
+
+saveCounter();
+
+const prevCounter = getPreviousProcessCounter();
+
+showWarning(`Can't run Process ${processNumber} because kitting ${statusCount} is not available at Process ${processNumber - 1}`);
+
+return;
+
+}
+
+updateStatusNumber();
+
+saveCounter();
+
+hasEverStarted = true;
+
+localStorage.setItem(`process${processNumber}_has_started`, 'true');
+
+// Send data to database
+
+sendDataToDatabase('start', {
+
+kitting_no: statusCount.toString()
+
+});
+
+updateStatus("STATUS: RUNNING", "running");
+
+timerInterval = setInterval(() => {
+
+seconds++;
+
+document.getElementById("timer").innerText = formatTime(seconds);
+
+if (seconds >= maxSeconds) {
+
+clearInterval(timerInterval);
+
+timerInterval = null;
+
+updateStatus(`STATUS: TARGET REACHED (${maxSeconds} SEC)`, "done");
+
+}
+
+}, 1000);
+
+}
+
+function stopTimer() {
+
+// Allow STOP button to work even if timer reached maxSeconds
+
+// Check if timer is running or if status shows "TARGET REACHED"
+
+const currentStatus = document.getElementById("processStatus").innerText;
+
+if (timerInterval === null && !currentStatus.includes("TARGET REACHED")) {
+
+return;
+
+}
+
+// Clear timer if it's still running
+
+if (timerInterval !== null) {
+
+clearInterval(timerInterval);
+
+timerInterval = null;
+
+}
+
+// Get current elapsed time
+
+const elapsedTime = document.getElementById("timer").innerText;
+
+// Send data to database (counter already incremented on START)
+
+sendDataToDatabase('stop', {
+
+kitting_no: statusCount.toString(),
+
+elapsed_time: elapsedTime
+
+});
+
+seconds = 0;
+
+document.getElementById("timer").innerText = formatTime(seconds);
+
+updateStatus("STATUS: STOPPED", "stopped");
+
+}
+
+function updateStatus(message, status) {
+
+document.getElementById("processStatus").innerText = message;
+
+}
+
+function formatTime(totalSeconds) {
+
+const minutes = Math.floor(totalSeconds / 60);
+
+const secs = totalSeconds % 60;
+
+return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+}
+
+function openLineoutModal() {
+
+document.getElementById("lineoutModal").style.display = "block";
+
+}
+
+function closeLineoutModal() {
+
+document.getElementById("lineoutModal").style.display = "none";
+
+}
+
+function submitLineout() {
+
+const reasonSelect = document.getElementById("reasonSelect");
+
+const reason = reasonSelect.value;
+
+if (!reason) {
+
+alert("Please select a reason for lineout");
+
+return;
+
+}
+
+let counterToBlock;
+let isNGLineout = false;
+
+if (ngDetectedCounter !== null) {
+    counterToBlock = ngDetectedCounter;
+    isNGLineout = true;
+    ngDetectedCounter = null;
+} else {
+    counterToBlock = statusCount;
+}
+
+blockAllSubsequentProcessesFromRunningCounter(counterToBlock);
+
+// Get current elapsed time
+const elapsedTime = document.getElementById("timer").innerText;
+
+// Send data to database
+sendDataToDatabase(isNGLineout ? 'ng_lineout' : 'lineout', {
+kitting_no: counterToBlock.toString(),
+lineout_reason: reason,
+elapsed_time: elapsedTime
+});
+
+console.log(`Process ${processNumber} Lineout - Reason: ${reason} - Counter: ${counterToBlock}`);
+
+closeLineoutModal();
+
+// Reset timer to 00:00 after LINEOUT
+seconds = 0;
+document.getElementById("timer").innerText = formatTime(seconds);
+
+alert(`Lineout submitted successfully!\nReason: ${reason}\nCounter: ${counterToBlock}\n\nProcess ${processNumber + 1} cannot run counter ${counterToBlock}`);
+
+}
+
+function showOthersInput() {
+
+const otherReason = prompt("Please enter the reason for lineout:");
+
+if (otherReason && otherReason.trim()) {
+
+let counterToBlock;
+let isNGLineout = false;
+
+if (ngDetectedCounter !== null) {
+    counterToBlock = ngDetectedCounter;
+    isNGLineout = true;
+    ngDetectedCounter = null;
+} else {
+    counterToBlock = statusCount;
+}
+
+blockAllSubsequentProcessesFromRunningCounter(counterToBlock);
+
+// Get current elapsed time
+const elapsedTime = document.getElementById("timer").innerText;
+
+// Send data to database
+sendDataToDatabase(isNGLineout ? 'ng_lineout' : 'lineout', {
+kitting_no: counterToBlock.toString(),
+lineout_reason: otherReason,
+elapsed_time: elapsedTime
+});
+
+console.log(`Process ${processNumber} Lineout - Reason: ${otherReason} - Counter: ${counterToBlock}`);
+
+closeLineoutModal();
+
+// Reset timer to 00:00 after LINEOUT
+seconds = 0;
+document.getElementById("timer").innerText = formatTime(seconds);
+
+alert(`Lineout submitted successfully!\nReason: ${otherReason}\nCounter: ${counterToBlock}\n\nProcess ${processNumber + 1} cannot run counter ${counterToBlock}`);
+
+}
+
+}
+
+// Handle NG button click
+
+function handleNG() {
+
+// Only stop the timer if running, but DON'T block any counter yet
+
+if (timerInterval) {
+
+// Save the current counter value BEFORE stopping the timer
+
+ngDetectedCounter = statusCount;
+
+// Stop timer without sending data (just clear interval)
+clearInterval(timerInterval);
+timerInterval = null;
+
+// Update status to show timer stopped
+updateStatus("STATUS: STOPPED", "stopped");
+
+console.log(`NG: Timer stopped. Counter ${ngDetectedCounter} will be blocked when LINEOUT is submitted.`);
+
+} else {
+
+console.log(`NG: Timer was not running. No action taken.`);
+
+}
+
+// Show confirmation that LINEOUT is needed to complete the blocking
+
+if (ngDetectedCounter !== null) {
+
+alert(`NG detected!\nTimer stopped.\n\nPlease submit LINEOUT to record NG with reason ${ngDetectedCounter} for subsequent processes.`);
+
+} else {
+
+alert(`NG detected!\nTimer was not running.\n\nPlease submit LINEOUT to block the last processed counter.`);
+
+}
+
+// Extra safeguard: Ensure timer stays stopped after NG
+if (timerInterval) {
+clearInterval(timerInterval);
+timerInterval = null;
+updateStatus("STATUS: STOPPED", "stopped");
+}
+
+}
+
+// Block all subsequent processes from running a specific counter
+
+function blockAllSubsequentProcessesFromRunningCounter(counter) {
+
+for (let i = processNumber + 1; i <= 9; i++) {
+
+const blockedKey = `process${i}_blocked_counters`;
+
+let blockedCounters = JSON.parse(localStorage.getItem(blockedKey) || '[]');
+
+if (!blockedCounters.includes(counter)) {
+
+blockedCounters.push(counter);
+
+localStorage.setItem(blockedKey, JSON.stringify(blockedCounters));
+
+console.log(`Blocked Process ${i} from running counter ${counter} due to NG at Process ${processNumber}`);
+
+}
+
+}
+
+}
+
+function addDropdownItem() {
+
+const newItem = prompt("Enter new reason for dropdown:");
+
+if (newItem && newItem.trim()) {
+
+const reasonSelect = document.getElementById("reasonSelect");
+
+const option = document.createElement("option");
+
+option.value = newItem.toUpperCase();
+
+option.text = newItem.toUpperCase();
+
+reasonSelect.add(option);
+
+alert(`"${newItem.toUpperCase()}" has been added to the dropdown list.`);
+
+}
+
+}
+
+// Load operator name from manpower database
+
+function loadOperator() {
+
+fetch(`/api/get_manpower/${processNumber}`)
+
+.then(response => response.json())
+
+.then(data => {
+
+if (data.success) {
+
+const op = data.manpower;
+
+const operatorName = op.operator_manual || op.operator_scan || '';
+
+const operatorInput = document.getElementById('operatorInput');
+
+if (operatorInput) operatorInput.value = operatorName;
+
+}
+
+})
+
+.catch(error => console.error('Error loading operator:', error));
+
+}
+
+// Load standard time from database
+
+function loadStandardTime() {
+
+fetch(`/api/get_standard_time/${processNumber}`)
+
+.then(response => response.json())
+
+.then(data => {
+
+if (data.success) {
+
+const stMinutes = data.standard_time;
+
+maxSeconds = Math.round(stMinutes * 60);
+
+const stDisplay = document.getElementById('stValue');
+
+if (stDisplay) stDisplay.textContent = stMinutes.toFixed(2) + ' MIN';
+
+if (data.title) {
+
+const titleEl = document.querySelector('.process-title-header');
+
+if (titleEl) titleEl.textContent = data.title;
+
+}
+
+console.log(`Loaded ST for Process ${processNumber}: ${stMinutes} min = ${maxSeconds} sec`);
+
+}
+
+})
+
+.catch(error => console.error('Error loading ST:', error));
+
+}
+
+// Load counter when page loads
+
+window.addEventListener('load', () => {
+
+loadCounter();
+
+loadStandardTime();
+
+loadOperator();
+
+});
+
+// Function to send data to database
+
+function sendDataToDatabase(action, data) {
+
+let url;
+
+switch(action) {
+
+case 'start':
+
+url = '/api/start_process';
+
+break;
+
+case 'stop':
+
+url = '/api/stop_process';
+
+break;
+
+case 'ng':
+
+url = '/api/ng_process';
+
+break;
+
+case 'ng_lineout':
+
+url = '/api/ng_lineout_process';
+
+break;
+
+case 'lineout':
+
+url = '/api/lineout_process';
+
+break;
+
+default:
+
+console.error('Unknown action:', action);
+
+return;
+
+}
+
+// Add process number to data
+
+data.process_no = processNumber;
+
+fetch(url, {
+
+method: 'POST',
+
+headers: {
+
+'Content-Type': 'application/json',
+
+},
+
+body: JSON.stringify(data)
+
+})
+
+.then(response => response.json())
+
+.then(result => {
+
+if (result.success) {
+
+console.log('Data saved successfully:', result);
+
+} else {
+
+console.error('Failed to save data:', result.error);
+
+}
+
+})
+
+.catch(error => {
+
+console.error('Error sending data to database:', error);
+
+});
+
+}
+
+</script>
+
+</body>
+</html>
