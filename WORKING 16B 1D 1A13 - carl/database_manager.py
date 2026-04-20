@@ -119,7 +119,8 @@ class DatabaseManager:
             # Add new columns if they don't exist (for existing databases)
             for col_name, col_def in [('id_no', 'VARCHAR(50) DEFAULT \"\" AFTER process_no'),
                                        ('operator_name', 'VARCHAR(255) DEFAULT \"\" AFTER id_no'),
-                                       ('employment_status', 'VARCHAR(50) DEFAULT \"\" AFTER operator_name')]:
+                                       ('employment_status', 'VARCHAR(50) DEFAULT \"\" AFTER operator_name'),
+                                       ('time_in', 'DATETIME DEFAULT NULL AFTER operator_scan')]:
                 try:
                     cursor.execute(f"ALTER TABLE manpower ADD COLUMN {col_name} {col_def}")
                 except Exception:
@@ -232,6 +233,16 @@ class DatabaseManager:
                     cursor.execute(f"ALTER TABLE process_{i} ADD COLUMN out_reasons VARCHAR(255) DEFAULT '' AFTER operator_name")
                 except:
                     pass
+                # Add time_in column if table already exists without it
+                try:
+                    cursor.execute(f"ALTER TABLE process_{i} ADD COLUMN time_in DATETIME DEFAULT NULL AFTER operator_name")
+                except:
+                    pass
+                # Add time_out column if table already exists without it
+                try:
+                    cursor.execute(f"ALTER TABLE process_{i} ADD COLUMN time_out DATETIME DEFAULT NULL AFTER time_in")
+                except:
+                    pass
             
             # Parse existing operator_scan data to populate id_no, operator_name, employment_status
             cursor.execute("SELECT process_no, operator_scan FROM manpower WHERE operator_scan != '' AND (id_no IS NULL OR id_no = '')")
@@ -264,7 +275,7 @@ class DatabaseManager:
             database=self.database_name
         )
     
-    def insert_record(self, kitting_no, lineout_reason, elapsed_time, pass_ng, process_no, in_line_reason=None, repaired_action=None, out_reasons=None):
+    def insert_record(self, kitting_no, lineout_reason, elapsed_time, pass_ng, process_no, in_line_reason=None, repaired_action=None, out_reasons=None, time_in=None, time_out=None):
         """Insert a new record into process_records table"""
         connection = None
         cursor = None
@@ -316,19 +327,21 @@ class DatabaseManager:
             pno = int(process_no) if process_no else 0
             if 1 <= pno <= 9:
                 try:
-                    # Look up operator_name from manpower table
-                    cursor.execute("SELECT operator_name FROM manpower WHERE process_no = %s", (pno,))
+                    # Look up operator_name and time_in from manpower table
+                    cursor.execute("SELECT operator_name, time_in FROM manpower WHERE process_no = %s", (pno,))
                     mp_row = cursor.fetchone()
                     op_name = mp_row[0] if mp_row and mp_row[0] else ''
+                    # Use time_in from manpower if not provided
+                    actual_time_in = time_in if time_in else (mp_row[1] if mp_row and len(mp_row) > 1 else None)
                     
                     per_process_query = f"""
                     INSERT INTO process_{pno}
-                    (kitting_no, lineout_reason, in_line_reason, repaired_action, elapsed_time, pass_ng, process_no, operator_name, out_reasons)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    (kitting_no, lineout_reason, in_line_reason, repaired_action, elapsed_time, pass_ng, process_no, operator_name, time_in, time_out, out_reasons)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """
-                    cursor.execute(per_process_query, (kitting_no, lineout_reason, in_line_reason, repaired_action, elapsed_time, pass_ng, pno, op_name, out_reasons))
+                    cursor.execute(per_process_query, (kitting_no, lineout_reason, in_line_reason, repaired_action, elapsed_time, pass_ng, pno, op_name, actual_time_in, time_out, out_reasons))
                     connection.commit()
-                    print(f"Per-process record inserted into process_{pno} (operator: {op_name}, out_reasons: {out_reasons})")
+                    print(f"Per-process record inserted into process_{pno} (operator: {op_name}, time_in: {actual_time_in}, out_reasons: {out_reasons})")
                 except Exception as pe:
                     print(f"Warning: Failed to insert into process_{pno} table: {pe}")
             
@@ -591,8 +604,12 @@ class DatabaseManager:
                 elif len(parts) == 1:
                     id_no = parts[0].strip()
             
-            query = "UPDATE manpower SET id_no = %s, operator_name = %s, employment_status = %s, operator_manual = %s, operator_scan = %s WHERE process_no = %s"
-            cursor.execute(query, (id_no, operator_name, employment_status, operator_manual or '', scan_val, process_no))
+            # Record time_in when operator scans in
+            from datetime import datetime
+            time_in = datetime.now()
+            
+            query = "UPDATE manpower SET id_no = %s, operator_name = %s, employment_status = %s, operator_manual = %s, operator_scan = %s, time_in = %s WHERE process_no = %s"
+            cursor.execute(query, (id_no, operator_name, employment_status, operator_manual or '', scan_val, time_in, process_no))
             connection.commit()
             
             return cursor.rowcount > 0
@@ -684,6 +701,83 @@ class DatabaseManager:
             if connection:
                 connection.rollback()
             return False
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                connection.close()
+    
+    def update_out_reason(self, process_no, reason):
+        """Update out_reasons in the last record of a process table when operator signs out"""
+        connection = None
+        cursor = None
+        try:
+            connection = self.get_connection()
+            cursor = connection.cursor()
+            # Update the most recent record for this process with the OUT reason
+            query = f"""
+            UPDATE process_{process_no} 
+            SET out_reasons = %s 
+            WHERE id = (SELECT max_id FROM (SELECT MAX(id) as max_id FROM process_{process_no}) as temp)
+            """
+            cursor.execute(query, (reason,))
+            connection.commit()
+            print(f"Updated out_reasons to '{reason}' for last record in process_{process_no}")
+            return cursor.rowcount > 0
+        except Error as e:
+            print(f"Error updating out_reasons: {e}")
+            if connection:
+                connection.rollback()
+            return False
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                connection.close()
+    
+    def update_time_out(self, process_no):
+        """Update time_out in the last record of a process table when operator signs out"""
+        connection = None
+        cursor = None
+        try:
+            connection = self.get_connection()
+            cursor = connection.cursor()
+            from datetime import datetime
+            time_out = datetime.now()
+            # Update the most recent record for this process with the time_out
+            query = f"""
+            UPDATE process_{process_no} 
+            SET time_out = %s 
+            WHERE id = (SELECT max_id FROM (SELECT MAX(id) as max_id FROM process_{process_no}) as temp)
+            """
+            cursor.execute(query, (time_out,))
+            connection.commit()
+            print(f"Updated time_out to '{time_out}' for last record in process_{process_no}")
+            return cursor.rowcount > 0
+        except Error as e:
+            print(f"Error updating time_out: {e}")
+            if connection:
+                connection.rollback()
+            return False
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                connection.close()
+    
+    def get_manpower_time_in(self, process_no):
+        """Get the time_in for a specific process from manpower table"""
+        connection = None
+        cursor = None
+        try:
+            connection = self.get_connection()
+            cursor = connection.cursor()
+            cursor.execute("SELECT time_in FROM manpower WHERE process_no = %s", (process_no,))
+            row = cursor.fetchone()
+            return row[0] if row and row[0] else None
+        except Error as e:
+            print(f"Error getting time_in: {e}")
+            return None
         finally:
             if cursor:
                 cursor.close()

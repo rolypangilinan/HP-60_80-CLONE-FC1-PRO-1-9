@@ -802,6 +802,13 @@ def operator_out():
         if not process_no:
             return jsonify({"success": False, "error": "Missing process_no"}), 400
         
+        # Update the out_reasons column in the last record of the process table
+        if reason:
+            db_manager.update_out_reason(process_no, reason)
+        
+        # Update the time_out column in the last record of the process table
+        db_manager.update_time_out(process_no)
+        
         success = db_manager.clear_manpower(process_no)
         if success:
             return jsonify({"success": True})

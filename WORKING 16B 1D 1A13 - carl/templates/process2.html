@@ -2224,6 +2224,7 @@ STATUS: IDLE
 
 </div>
 
+<script src="/static/js/server_sync.js"></script>
 <script>
 
 let seconds = 0;
@@ -2249,11 +2250,13 @@ let inLineRepairMode = false; // Track if IN-LINE REPAIR is active (timer keeps 
 let inLineFrozenSeconds = 0; // Frozen seconds when IN-LINE REPAIR modal opens
 let currentInLineReason = ''; // Store in-line reason to pass with repaired action
 
+// Server-side blocked counters cache (fetched from server)
+let serverBlockedCounters = [];
+
 // Timer update function (used for resume after pause)
 function updateTimer() {
     seconds++;
     document.getElementById('timer').innerText = formatTime(seconds);
-    if (seconds % 10 === 0) saveTimerState();
     if (seconds >= maxSeconds) {
         document.getElementById('timer').style.color = '#ffffff';
         document.querySelector('.timer-box').style.background = '#ff0000';
@@ -2292,210 +2295,98 @@ function checkManpowerOnLoad() {
 
 checkManpowerOnLoad();
 
-// Load saved counter when page loads
+// Load saved counter from SERVER (not localStorage) for multi-device sync
 
-function loadCounter() {
-
-const saved = localStorage.getItem(`process${processNumber}_counter`);
-
-if (saved !== null) {
-
-statusCount = parseInt(saved);
-
-updateStatusNumber();
-
-}
-
-// Check if this specific process has been opened before
-
-const processOpenedKey = `process${processNumber}_opened`;
-
-const hasProcessOpened = localStorage.getItem(processOpenedKey);
-
-if (hasProcessOpened === null) {
-
-// First time this specific process is opened
-
-hasEverStarted = false;
-
-localStorage.setItem(processOpenedKey, 'true');
-
-} else {
-
-// This process has been opened before
-
-// Check if START button has ever been clicked for this process
-
-const hasStartedKey = `process${processNumber}_has_started`;
-
-const hasStarted = localStorage.getItem(hasStartedKey);
-
-hasEverStarted = hasStarted === 'true';
-
-}
-
-// Load and restore timer state if it was running
-
-restoreTimerState();
-
-}
-
-// Save counter to localStorage
-
-function saveCounter() {
-
-localStorage.setItem(`process${processNumber}_counter`, statusCount.toString());
-
-}
-
-// Save timer state to localStorage
-
-function saveTimerState() {
-
-const timerState = {
-
-isRunning: timerInterval !== null,
-
-seconds: seconds,
-
-startTimestamp: localStorage.getItem(`process${processNumber}_timer_start`) || Date.now(),
-
-kittingNo: currentKittingNo
-
-};
-
-localStorage.setItem(`process${processNumber}_timer_state`, JSON.stringify(timerState));
-
-}
-
-// Restore timer state from localStorage
-
-async function restoreTimerState() {
-
-const timerStateStr = localStorage.getItem(`process${processNumber}_timer_state`);
-
-if (!timerStateStr) return;
-
-if (timerInterval) return;
-
-try {
-
-const timerState = JSON.parse(timerStateStr);
-
-if (timerState.isRunning && timerState.startTimestamp) {
-
-// Validate upstream before restoring timer
-if (processNumber > 1) {
-    const check = await canRunNextCounterFromServer(timerState.kittingNo || 1);
-    if (!check.allowed) {
-        console.log(`[RESTORE] Blocked: Process ${check.prev_process} has ${check.prev_completed} completed. Clearing stale timer.`);
-        clearTimerState();
-        return;
+async function loadCounter() {
+    try {
+        const state = await ServerSync.getProcessState(processNumber);
+        if (state && state.success) {
+            statusCount = state.counter || 0;
+            updateStatusNumber();
+            serverBlockedCounters = state.blocked_counters || [];
+            
+            if (state.timer && state.timer.active) {
+                seconds = state.timer.elapsed_seconds;
+                currentKittingNo = state.timer.kitting_no;
+                document.getElementById("timer").innerText = formatTime(seconds);
+                if (seconds >= maxSeconds) {
+                    document.getElementById("timer").style.color = '#ff0000';
+                    updateStatus('STATUS: OVER ST TIME', 'done');
+                } else {
+                    document.getElementById("timer").style.color = '#00ff7f';
+                    updateStatus('STATUS: RUNNING', 'running');
+                }
+                if (!timerInterval) {
+                    timerInterval = setInterval(updateTimer, 1000);
+                }
+                hasEverStarted = true;
+                console.log(`[SERVER SYNC] Resumed timer: Kitting ${currentKittingNo}, Elapsed ${seconds}s`);
+            }
+            console.log(`[SERVER SYNC] Loaded state: Counter=${statusCount}, Blocked=${serverBlockedCounters.length}`);
+        }
+    } catch (err) {
+        console.error('Error loading counter from server:', err);
     }
 }
 
-// Calculate elapsed time since start
-
-const elapsedSeconds = Math.floor((Date.now() - parseInt(timerState.startTimestamp)) / 1000);
-
-seconds = elapsedSeconds;
-
-currentKittingNo = timerState.kittingNo;
-
-// Update display
-
-document.getElementById("timer").innerText = formatTime(seconds);
-
-if (seconds >= maxSeconds) {
-
-document.getElementById("timer").style.color = '#ff0000';
-
-updateStatus(`STATUS: OVER ST TIME`, "done");
-
-} else {
-
-document.getElementById("timer").style.color = '#00ff7f';
-
-updateStatus("STATUS: RUNNING", "running");
-
+// Save counter - sync with server for multi-device support
+async function saveCounter() {
+    const serverCounter = await ServerSync.syncCounter(processNumber, statusCount);
+    if (serverCounter > statusCount) {
+        statusCount = serverCounter;
+        updateStatusNumber();
+    }
 }
 
-// Restart the timer interval
-
-timerInterval = setInterval(() => {
-
-seconds++;
-
-document.getElementById("timer").innerText = formatTime(seconds);
-
-saveTimerState(); // Save state periodically
-
-if (seconds >= maxSeconds) {
-
-document.getElementById("timer").style.color = '#ff0000';
-
-updateStatus(`STATUS: OVER ST TIME`, "done");
-
-} else {
-
-document.getElementById("timer").style.color = '#00ff7f';
-
+// Save timer state - now handled by server, this is a no-op for compatibility
+function saveTimerState() {
+    // Timer state is now managed server-side via /api/start_server_timer
 }
 
-}, 1000);
-
-// Set active kitting marker for restored timer
-
-if (currentKittingNo) {
-
-localStorage.setItem(`process${processNumber}_active_kitting`, currentKittingNo.toString());
-
+// Restore timer state - now handled by loadCounter via server state
+function restoreTimerState() {
+    // Timer state restoration is now handled in loadCounter() via ServerSync.getProcessState()
 }
 
-console.log(`Timer restored: ${seconds} seconds elapsed for kitting ${currentKittingNo}`);
-
+// Clear timer state - now clears server-side active kitting
+async function clearTimerState() {
+    await ServerSync.clearActiveKitting(processNumber);
 }
 
-} catch (e) {
-
-console.error('Error restoring timer state:', e);
-
+// Check if kitting is active on another process (server-side)
+async function isKittingActiveOnOtherProcess(kittingNo) {
+    const result = await ServerSync.isKittingActiveOnOtherProcess(kittingNo, processNumber);
+    if (result.active) {
+        return result.process_no;
+    }
+    return false;
 }
 
+// Check if counter is blocked (uses server-side cache)
+function isCounterBlocked(counter) {
+    return serverBlockedCounters.includes(counter);
 }
 
-// Clear timer state from localStorage
-
-function clearTimerState() {
-
-localStorage.removeItem(`process${processNumber}_timer_state`);
-
-localStorage.removeItem(`process${processNumber}_timer_start`);
-
-localStorage.removeItem(`process${processNumber}_active_kitting`);
-
+// Block counter for subsequent processes (server-side)
+async function blockNextProcessFromRunningCounter(counter) {
+    await ServerSync.blockCounter(processNumber, counter);
+    console.log(`Blocked counter ${counter} for all processes after Process ${processNumber}`);
 }
 
-// Check if a kitting number is actively being processed by another process
-
-function isKittingActiveOnOtherProcess(kittingNo) {
-
-for (let i = 1; i <= 9; i++) {
-
-if (i === processNumber) continue;
-
-const activeKitting = localStorage.getItem(`process${i}_active_kitting`);
-
-if (activeKitting !== null && parseInt(activeKitting) === kittingNo) {
-
-return i;
-
+// Block all subsequent processes (server-side)
+async function blockAllSubsequentProcessesFromRunningCounter(counter) {
+    await ServerSync.blockCounter(processNumber, counter);
+    console.log(`Blocked counter ${counter} for all processes after Process ${processNumber} (server-side)`);
 }
 
-}
-
-return false;
-
+// Placeholder for compatibility - validation now done server-side
+async function canRunNextCounterFromServer(kittingNo) {
+    const result = await ServerSync.canStartKitting(processNumber, kittingNo);
+    return {
+        allowed: result.allowed,
+        prev_process: result.prev_process,
+        prev_completed: result.prev_completed
+    };
 }
 
 // Update status number display
@@ -3216,83 +3107,6 @@ if (operatorName.length > 0) operatorInput.style.width = (operatorName.length + 
 
 }
 
-// Sync counter with server (server may have incremented via Arduino while page was closed)
-function syncCounterWithServer() {
-    fetch(`/api/sync_counter/${processNumber}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ counter: statusCount })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success && data.counter > statusCount) {
-            console.log(`[SYNC] Server counter (${data.counter}) > browser counter (${statusCount}). Updating.`);
-            statusCount = data.counter;
-            updateStatusNumber();
-            saveCounter();
-        }
-    })
-    .catch(err => console.error('Error syncing counter:', err));
-}
-
-// Check if server has an active timer for this process (started by Arduino while page was closed)
-function checkServerTimer() {
-    fetch(`/api/get_server_timer/${processNumber}`)
-    .then(response => response.json())
-    .then(async data => {
-        if (data.success && data.active && !timerInterval && !lineoutModalOpen && !inLineModalOpen && !inLineRepairMode) {
-            const serverKitting = data.kitting_no;
-            const elapsedSec = data.elapsed_seconds;
-            console.log(`[SERVER TIMER] Found active server timer: Kitting ${serverKitting}, Elapsed ${elapsedSec}s`);
-            if (processNumber > 1) {
-                const check = await canRunNextCounterFromServer(serverKitting);
-                if (!check.allowed) {
-                    console.log(`[SERVER TIMER] Blocked pickup: Process ${check.prev_process} has ${check.prev_completed} completed`);
-                    return;
-                }
-            }
-            if (serverKitting > statusCount) {
-                statusCount = serverKitting;
-                updateStatusNumber();
-                saveCounter();
-            }
-            seconds = elapsedSec;
-            currentKittingNo = serverKitting;
-            document.getElementById("timer").innerText = formatTime(seconds);
-            if (seconds >= maxSeconds) {
-                document.getElementById("timer").style.color = '#ff0000';
-                updateStatus('STATUS: OVER ST TIME', 'done');
-            } else {
-                document.getElementById("timer").style.color = '#00ff7f';
-                updateStatus('STATUS: RUNNING', 'running');
-            }
-            const startTimestamp = Date.now() - (elapsedSec * 1000);
-            localStorage.setItem(`process${processNumber}_timer_start`, startTimestamp.toString());
-            localStorage.setItem(`process${processNumber}_active_kitting`, serverKitting.toString());
-            hasEverStarted = true;
-            localStorage.setItem(`process${processNumber}_has_started`, 'true');
-            timerInterval = setInterval(() => {
-                seconds++;
-                document.getElementById("timer").innerText = formatTime(seconds);
-                if (seconds % 10 === 0) saveTimerState();
-                if (seconds >= maxSeconds) {
-                    document.getElementById("timer").style.color = '#ffffff';
-                    document.querySelector('.timer-box').style.background = '#ff0000';
-                    document.querySelector('.timer-box').style.border = '2px solid #ff0000';
-                    updateStatus('STATUS: OVER ST TIME', 'done');
-                } else {
-                    document.getElementById("timer").style.color = '#00ff7f';
-                    document.querySelector('.timer-box').style.background = 'linear-gradient(135deg, #1a1a2e, #16213e)';
-                    document.querySelector('.timer-box').style.border = '2px solid rgba(0,255,127,0.2)';
-                }
-            }, 1000);
-            saveTimerState();
-            console.log(`[SERVER TIMER] Browser picked up server timer for Kitting ${serverKitting}`);
-        }
-    })
-    .catch(err => console.error('Error checking server timer:', err));
-}
-
 // ==================== IN / OUT MODAL FUNCTIONS ====================
 
 function openInModal() {
@@ -3424,26 +3238,55 @@ window.addEventListener('click', function(e) {
 
 // Load counter when page loads
 
-window.addEventListener('load', () => {
-
-loadCounter();
-
-loadStandardTime();
-
-loadOperator();
-
-// Sync counter with server and check for server-side timers
-syncCounterWithServer();
-setTimeout(() => checkServerTimer(), 500);
-// Periodically check for server-side timers (every 2 seconds)
-setInterval(() => { if (!timerInterval) checkServerTimer(); }, 2000);
-// Periodically sync counter with server so all browsers (local + remote) show the same display
-setInterval(() => syncCounterWithServer(), 3000);
-
-// Store this process as the last visited
-
-localStorage.setItem('last_visited_process', processNumber.toString());
-
+window.addEventListener('load', async () => {
+    // Load state from server (replaces localStorage)
+    await loadCounter();
+    
+    loadStandardTime();
+    loadOperator();
+    
+    // Start polling for state changes from other devices (every 2 seconds)
+    ServerSync.startPolling(processNumber, (state) => {
+        if (state && state.success) {
+            // Update counter if server has a higher value
+            if (state.counter > statusCount) {
+                statusCount = state.counter;
+                updateStatusNumber();
+            }
+            // Update blocked counters cache
+            serverBlockedCounters = state.blocked_counters || [];
+            
+            // If server has an active timer and we don't, pick it up
+            if (state.timer && state.timer.active && !timerInterval && !lineoutModalOpen && !inLineModalOpen) {
+                seconds = state.timer.elapsed_seconds;
+                currentKittingNo = state.timer.kitting_no;
+                document.getElementById("timer").innerText = formatTime(seconds);
+                if (seconds >= maxSeconds) {
+                    document.getElementById("timer").style.color = '#ff0000';
+                    updateStatus('STATUS: OVER ST TIME', 'done');
+                } else {
+                    document.getElementById("timer").style.color = '#00ff7f';
+                    updateStatus('STATUS: RUNNING', 'running');
+                }
+                timerInterval = setInterval(updateTimer, 1000);
+                console.log('[SYNC] Picked up active timer from server');
+            }
+            
+            // If server timer is NOT active but we have a running timer, STOP it (synced from another device)
+            if ((!state.timer || !state.timer.active) && timerInterval && !lineoutModalOpen && !inLineModalOpen) {
+                console.log('[SYNC] Server timer stopped - stopping local timer');
+                clearInterval(timerInterval);
+                timerInterval = null;
+                seconds = 0;
+                currentKittingNo = null;
+                document.getElementById("timer").innerText = formatTime(seconds);
+                document.getElementById("timer").style.color = '#00ff7f';
+                document.querySelector('.timer-box').style.background = 'linear-gradient(135deg, #1a1a2e, #16213e)';
+                document.querySelector('.timer-box').style.border = '2px solid rgba(0,255,127,0.2)';
+                updateStatus('STATUS: STOPPED', 'stopped');
+            }
+        }
+    }, 2000);
 });
 
 function formatTime(totalSeconds) {
@@ -3500,20 +3343,16 @@ try {
     console.error('Error checking manpower:', err);
 }
 
-// Process 1 has no previous process, but should still skip blocked counters
+// Refresh blocked counters from server before checking
+const blockedResp = await ServerSync.getBlockedCounters(processNumber);
+serverBlockedCounters = blockedResp || [];
 
 // Skip any blocked counters (NG from previous runs)
-
-while (isCounterBlocked(statusCount)) {
-
-console.log(`Counter ${statusCount} is blocked (NG from previous process), skipping.`);
-
-statusCount++;
-
-updateStatusNumber();
-
-saveCounter();
-
+while (isCounterBlocked(statusCount + 1)) {
+    console.log(`Counter ${statusCount + 1} is blocked (NG from previous process), skipping.`);
+    statusCount++;
+    updateStatusNumber();
+    await saveCounter();
 }
 
 // Check if previous process has completed this kitting number (SERVER CHECK)
@@ -3524,17 +3363,12 @@ if (!serverCheck.allowed) {
 }
 
 // Check if the next kitting number is actively being processed by another process
-
 const nextKitting = statusCount + 1;
-
-const activeOnProcess = isKittingActiveOnOtherProcess(nextKitting);
+const activeOnProcess = await isKittingActiveOnOtherProcess(nextKitting);
 
 if (activeOnProcess !== false) {
-
-alert(`Kitting ${nextKitting} is NOT AVAILABLE!\n\nKitting ${nextKitting} is currently being processed at Process ${activeOnProcess}.\n\nPlease wait for Process ${activeOnProcess} to finish Kitting ${nextKitting} before starting.`);
-
-return;
-
+    alert(`Kitting ${nextKitting} is NOT AVAILABLE!\n\nKitting ${nextKitting} is currently being processed at Process ${activeOnProcess}.\n\nPlease wait for Process ${activeOnProcess} to finish Kitting ${nextKitting} before starting.`);
+    return;
 }
 
 if (seconds >= maxSeconds) {
@@ -3563,30 +3397,11 @@ saveCounter();
 
 hasEverStarted = true;
 
-// Save that START button has been clicked for this process
+// Mark this kitting as actively being processed (server-side)
+await ServerSync.setActiveKitting(processNumber, currentKittingNo);
 
-localStorage.setItem(`process${processNumber}_has_started`, 'true');
-
-// Mark this kitting as actively being processed
-
-localStorage.setItem(`process${processNumber}_active_kitting`, currentKittingNo.toString());
-
-// Save timer start timestamp
-
-const startTimestamp = Date.now();
-
-localStorage.setItem(`process${processNumber}_timer_start`, startTimestamp.toString());
-
-// Save initial timer state
-
-saveTimerState();
-
-// Notify server to track this timer server-side too
-fetch(`/api/start_server_timer/${processNumber}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ kitting_no: statusCount })
-}).catch(err => console.error('Error starting server timer:', err));
+// Start server-side timer tracking
+await ServerSync.startServerTimer(processNumber, statusCount);
 
 // Send data to database
 
@@ -3636,7 +3451,7 @@ document.querySelector('.timer-box').style.border = '2px solid rgba(0,255,127,0.
 
 }
 
-function stopTimer() {
+async function stopTimer() {
 
 // Allow STOP button to work even if timer reached maxSeconds
 
@@ -3701,8 +3516,9 @@ document.querySelector('.timer-box').style.border = '2px solid rgba(0,255,127,0.
 
 updateStatus("STATUS: STOPPED", "stopped");
 
-// Clear timer state
-clearTimerState();
+// Clear timer state and stop server-side timer (for multi-device sync)
+await clearTimerState();
+await ServerSync.stopServerTimer(processNumber);
 
 currentKittingNo = null;
 
