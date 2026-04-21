@@ -1087,6 +1087,50 @@ class DatabaseManager:
                 cursor.close()
             if connection:
                 connection.close()
+    
+    def reset_all_for_new_day(self):
+        """Full reset for new day: clear records, manpower, and graph data"""
+        connection = None
+        cursor = None
+        try:
+            connection = self.get_connection()
+            cursor = connection.cursor()
+            
+            # Clear all process records
+            cursor.execute("DELETE FROM process_records")
+            
+            # Clear per-process tables (process_1 through process_9)
+            for i in range(1, 10):
+                try:
+                    cursor.execute(f"DELETE FROM process_{i}")
+                except:
+                    pass
+            
+            # Clear manpower data (reset all operators)
+            cursor.execute("""
+                UPDATE manpower SET 
+                    id_no = '', 
+                    operator_name = '', 
+                    employment_status = '', 
+                    operator_manual = '', 
+                    operator_scan = '',
+                    time_in = NULL
+                WHERE process_no BETWEEN 1 AND 9
+            """)
+            
+            connection.commit()
+            print("Daily reset: Cleared all records, per-process tables, and manpower")
+            return True
+        except Error as e:
+            print(f"Error in reset_all_for_new_day: {e}")
+            if connection:
+                connection.rollback()
+            return False
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                connection.close()
 
     def get_manpower_by_process(self, process_no):
         """Get manpower for a specific process"""

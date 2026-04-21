@@ -58,6 +58,10 @@ server_active_kittings_lock = threading.Lock()
 last_data_update = {"timestamp": time.time()}
 last_data_update_lock = threading.Lock()
 
+# Tracks the last date the system was active (for daily auto-reset)
+last_active_date = {"date": None}
+last_active_date_lock = threading.Lock()
+
 # File to persist timer state across Flask restarts
 TIMER_STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'server_timer_state.json')
 
@@ -102,6 +106,53 @@ def update_last_data_timestamp():
     """Update the last data change timestamp"""
     with last_data_update_lock:
         last_data_update["timestamp"] = time.time()
+
+def check_daily_reset():
+    """Check if it's a new day and perform daily reset if needed.
+    Resets: kitting counters, manpower, and clears graph data."""
+    from datetime import datetime
+    today = datetime.now().strftime("%Y-%m-%d")
+    
+    with last_active_date_lock:
+        if last_active_date["date"] is None:
+            # First run, just set the date
+            last_active_date["date"] = today
+            print(f"Daily reset check: First run, setting date to {today}")
+            return False
+        
+        if last_active_date["date"] != today:
+            # New day detected - perform full reset
+            print(f"DAILY RESET TRIGGERED: New day detected ({last_active_date['date']} -> {today})")
+            last_active_date["date"] = today
+            
+            # Reset all server state
+            with server_timers_lock:
+                server_timers.clear()
+            with server_counters_lock:
+                server_counters.clear()
+            with arduino_signals_lock:
+                arduino_signals.clear()
+            with server_blocked_counters_lock:
+                server_blocked_counters.clear()
+            with server_active_kittings_lock:
+                server_active_kittings.clear()
+            
+            # Delete timer state file
+            try:
+                if os.path.exists(TIMER_STATE_FILE):
+                    os.remove(TIMER_STATE_FILE)
+            except:
+                pass
+            save_timer_state_to_file()
+            
+            # Reset database: counters, manpower, and records
+            db_manager.reset_all_for_new_day()
+            
+            update_last_data_timestamp()
+            
+            print("Daily reset completed: counters, manpower, and records cleared")
+            return True
+    return False
 
 def clear_all_server_state():
     """Clear all server-side timers, counters, and the state file"""
@@ -1516,6 +1567,9 @@ def get_process_state(process_no):
     """Get complete state for a process (counter, timer, blocked, active kittings)
     This is the main API for multi-device synchronization."""
     try:
+        # Check for daily reset (new day detection)
+        check_daily_reset()
+        
         # Get server counter
         with server_counters_lock:
             counter = server_counters.get(process_no, 0)
