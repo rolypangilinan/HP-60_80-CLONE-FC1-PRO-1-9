@@ -1011,24 +1011,41 @@ class DatabaseManager:
             if connection:
                 connection.close()
     
-    def get_line_trend_data(self, process_no, limit=10):
-        """Get individual elapsed time records for a process (for line trend graph)"""
+    def get_line_trend_data(self, process_no, limit=10, after_timestamp=None):
+        """Get individual elapsed time records for a process (for line trend graph)
+        Only returns records from TODAY to ensure graph resets on new day.
+        If after_timestamp is provided, only returns records after that time (for job order reset)."""
         connection = None
         cursor = None
         try:
             connection = self.get_connection()
             cursor = connection.cursor(dictionary=True)
             
-            query = """
-            SELECT id, elapsed_time, TIME_TO_SEC(elapsed_time) as elapsed_seconds, timestamp
-            FROM process_records 
-            WHERE process_no = %s 
-              AND elapsed_time IS NOT NULL 
-              AND elapsed_time != '00:00:00'
-            ORDER BY timestamp DESC 
-            LIMIT %s
-            """
-            cursor.execute(query, (process_no, limit))
+            if after_timestamp:
+                query = """
+                SELECT id, kitting_no, elapsed_time, TIME_TO_SEC(elapsed_time) as elapsed_seconds, timestamp
+                FROM process_records 
+                WHERE process_no = %s 
+                  AND elapsed_time IS NOT NULL 
+                  AND elapsed_time != '00:00:00'
+                  AND DATE(timestamp) = CURDATE()
+                  AND timestamp >= %s
+                ORDER BY timestamp DESC 
+                LIMIT %s
+                """
+                cursor.execute(query, (process_no, after_timestamp, limit))
+            else:
+                query = """
+                SELECT id, kitting_no, elapsed_time, TIME_TO_SEC(elapsed_time) as elapsed_seconds, timestamp
+                FROM process_records 
+                WHERE process_no = %s 
+                  AND elapsed_time IS NOT NULL 
+                  AND elapsed_time != '00:00:00'
+                  AND DATE(timestamp) = CURDATE()
+                ORDER BY timestamp DESC 
+                LIMIT %s
+                """
+                cursor.execute(query, (process_no, limit))
             records = cursor.fetchall()
             
             # Reverse so oldest is first (left-to-right on chart)
@@ -1043,9 +1060,12 @@ class DatabaseManager:
                 m_ss_value = minutes + (secs / 100.0)
                 result.append({
                     'id': row['id'],
+                    'kitting_no': row['kitting_no'] if row['kitting_no'] else '',
                     'elapsed_mss': round(m_ss_value, 2),
                     'elapsed_seconds': elapsed_sec,
-                    'timestamp': row['timestamp'].strftime('%Y-%m-%d %H:%M:%S') if row['timestamp'] else ''
+                    'timestamp': row['timestamp'].strftime('%Y-%m-%d %H:%M:%S') if row['timestamp'] else '',
+                    'date': row['timestamp'].strftime('%Y-%m-%d') if row['timestamp'] else '',
+                    'time': row['timestamp'].strftime('%H:%M:%S') if row['timestamp'] else ''
                 })
             
             return result
@@ -1060,53 +1080,24 @@ class DatabaseManager:
                 connection.close()
     
     def reset_records_only(self):
-        """Delete all process_records but keep manpower and standard_times intact"""
-        connection = None
-        cursor = None
-        try:
-            connection = self.get_connection()
-            cursor = connection.cursor()
-            cursor.execute("DELETE FROM process_records")
-            # Also clear per-process tables (process_1 through process_9)
-            for i in range(1, 10):
-                try:
-                    cursor.execute(f"DELETE FROM process_{i}")
-                except:
-                    pass
-            connection.commit()
-            deleted = cursor.rowcount
-            print(f"Auto-reset: Deleted process records and per-process tables (manpower preserved)")
-            return True
-        except Error as e:
-            print(f"Error resetting records: {e}")
-            if connection:
-                connection.rollback()
-            return False
-        finally:
-            if cursor:
-                cursor.close()
-            if connection:
-                connection.close()
+        """DISABLED - SQL records should NEVER be deleted.
+        This function now does nothing to protect permanent data."""
+        print("reset_records_only called but DISABLED - SQL records are permanent and will NOT be deleted")
+        return True
     
     def reset_all_for_new_day(self):
-        """Full reset for new day: clear records, manpower, and graph data"""
+        """Reset for new day: clear manpower only.
+        SQL database records are NOT deleted - they are permanent historical data."""
         connection = None
         cursor = None
         try:
             connection = self.get_connection()
             cursor = connection.cursor()
             
-            # Clear all process records
-            cursor.execute("DELETE FROM process_records")
+            # DO NOT delete process_records - this is permanent historical data
+            # DO NOT delete process_1 to process_9 tables - this is permanent data
             
-            # Clear per-process tables (process_1 through process_9)
-            for i in range(1, 10):
-                try:
-                    cursor.execute(f"DELETE FROM process_{i}")
-                except:
-                    pass
-            
-            # Clear manpower data (reset all operators)
+            # Only clear manpower data (operators must scan in each day)
             cursor.execute("""
                 UPDATE manpower SET 
                     id_no = '', 
@@ -1119,7 +1110,7 @@ class DatabaseManager:
             """)
             
             connection.commit()
-            print("Daily reset: Cleared all records, per-process tables, and manpower")
+            print("Daily reset: Cleared manpower only (SQL records preserved)")
             return True
         except Error as e:
             print(f"Error in reset_all_for_new_day: {e}")

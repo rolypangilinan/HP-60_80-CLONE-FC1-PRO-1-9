@@ -548,9 +548,12 @@
         const tolPlus = noTolerance ? null : Math.round((tactTime + tactTime * tolPct) * 100) / 100;
         const tolMinus = noTolerance ? null : Math.round((tactTime - tactTime * tolPct) * 100) / 100;
 
+        // Store records for tooltip access
+        const chartRecords = records;
+
         // Data points as plain decimal M.SS values
         const dataValues = records.map(r => r.elapsed_mss);
-        const labels = records.map((r, i) => (i + 1).toString());
+        const labels = records.map((r, i) => r.kitting_no || (i + 1).toString());
 
         // If no data, show empty chart with placeholder labels
         if (labels.length === 0) {
@@ -727,16 +730,37 @@
                     },
                     tooltip: {
                         callbacks: {
+                            title: function(context) {
+                                if (context[0].dataset.label === 'Cycle Time') {
+                                    const idx = context[0].dataIndex;
+                                    const record = chartRecords[idx];
+                                    if (record && record.kitting_no) {
+                                        return 'Kitting: ' + record.kitting_no;
+                                    }
+                                }
+                                return '';
+                            },
                             label: function(context) {
                                 if (context.dataset.label === 'Cycle Time') {
-                                    return 'Time: ' + context.raw.toFixed(2);
+                                    const idx = context.dataIndex;
+                                    const record = chartRecords[idx];
+                                    const lines = [];
+                                    if (record && record.date) {
+                                        lines.push('Date: ' + record.date);
+                                    }
+                                    if (record && record.time) {
+                                        lines.push('Time: ' + record.time);
+                                    }
+                                    lines.push('Cycle: ' + context.raw.toFixed(2));
+                                    return lines;
                                 }
                                 return context.dataset.label + ': ' + context.raw.toFixed(2);
                             }
                         },
-                        titleFont: { size: 12 },
-                        bodyFont: { size: 11 },
-                        padding: 8
+                        titleFont: { size: 18, weight: 'bold' },
+                        bodyFont: { size: 16 },
+                        padding: 14,
+                        boxPadding: 8
                     }
                 }
             }
@@ -955,8 +979,11 @@
         const tolPlus = noTolerance ? null : Math.round((tactTime + tactTime * tolPct) * 100) / 100;
         const tolMinus = noTolerance ? null : Math.round((tactTime - tactTime * tolPct) * 100) / 100;
 
+        // Store records for tooltip access in zoomed view
+        const zoomRecords = records;
+
         const dataValues = records.map(r => r.elapsed_mss);
-        const labels = records.map((r, i) => (i + 1).toString());
+        const labels = records.map((r, i) => r.kitting_no || (i + 1).toString());
         if (labels.length === 0) {
             for (let i = 1; i <= 5; i++) labels.push(i.toString());
         }
@@ -1049,12 +1076,35 @@
                 plugins: {
                     legend: { display: false },
                     tooltip: {
-                        titleFont: { size: 16 },
-                        bodyFont: { size: 14 },
-                        padding: 12,
+                        titleFont: { size: 22, weight: 'bold' },
+                        bodyFont: { size: 18 },
+                        padding: 16,
+                        boxPadding: 10,
                         callbacks: {
+                            title: function(context) {
+                                if (context[0].dataset.label === 'Cycle Time') {
+                                    const idx = context[0].dataIndex;
+                                    const record = zoomRecords[idx];
+                                    if (record && record.kitting_no) {
+                                        return 'Kitting: ' + record.kitting_no;
+                                    }
+                                }
+                                return '';
+                            },
                             label: function(context) {
-                                if (context.dataset.label === 'Cycle Time') return 'Time: ' + context.raw.toFixed(2);
+                                if (context.dataset.label === 'Cycle Time') {
+                                    const idx = context.dataIndex;
+                                    const record = zoomRecords[idx];
+                                    const lines = [];
+                                    if (record && record.date) {
+                                        lines.push('Date: ' + record.date);
+                                    }
+                                    if (record && record.time) {
+                                        lines.push('Time: ' + record.time);
+                                    }
+                                    lines.push('Cycle: ' + context.raw.toFixed(2));
+                                    return lines;
+                                }
                                 return context.dataset.label + ': ' + context.raw.toFixed(2);
                             }
                         }

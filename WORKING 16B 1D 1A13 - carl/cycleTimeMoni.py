@@ -62,8 +62,97 @@ last_data_update_lock = threading.Lock()
 last_active_date = {"date": None}
 last_active_date_lock = threading.Lock()
 
+# Tracks when a new job order started (for graph filtering)
+job_order_start_time = {"timestamp": None}
+job_order_start_time_lock = threading.Lock()
+
 # File to persist timer state across Flask restarts
 TIMER_STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'server_timer_state.json')
+
+# File to persist last active date across Flask restarts
+LAST_DATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'last_active_date.json')
+
+# File to persist job order start time across Flask restarts
+JOB_ORDER_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'job_order_start.json')
+
+def save_last_active_date(date_str):
+    """Save last active date to file"""
+    try:
+        with open(LAST_DATE_FILE, 'w') as f:
+            json.dump({"date": date_str}, f)
+        print(f"Saved last active date to file: {date_str}")
+    except Exception as e:
+        print(f"Error saving last active date: {e}")
+
+def load_last_active_date():
+    """Load last active date from file on startup"""
+    try:
+        if os.path.exists(LAST_DATE_FILE):
+            with open(LAST_DATE_FILE, 'r') as f:
+                data = json.load(f)
+            date_str = data.get("date")
+            if date_str:
+                with last_active_date_lock:
+                    last_active_date["date"] = date_str
+                print(f"Loaded last active date from file: {date_str}")
+                return date_str
+    except Exception as e:
+        print(f"Error loading last active date: {e}")
+    return None
+
+def save_job_order_start_time(timestamp_str):
+    """Save job order start time to file"""
+    try:
+        with open(JOB_ORDER_FILE, 'w') as f:
+            json.dump({"timestamp": timestamp_str}, f)
+        print(f"Saved job order start time to file: {timestamp_str}")
+    except Exception as e:
+        print(f"Error saving job order start time: {e}")
+
+def load_job_order_start_time():
+    """Load job order start time from file on startup"""
+    try:
+        if os.path.exists(JOB_ORDER_FILE):
+            with open(JOB_ORDER_FILE, 'r') as f:
+                data = json.load(f)
+            timestamp_str = data.get("timestamp")
+            if timestamp_str:
+                with job_order_start_time_lock:
+                    job_order_start_time["timestamp"] = timestamp_str
+                print(f"Loaded job order start time from file: {timestamp_str}")
+                return timestamp_str
+    except Exception as e:
+        print(f"Error loading job order start time: {e}")
+    return None
+
+def set_new_job_order_start():
+    """Set a new job order start time (called when all processes have same kitting)"""
+    from datetime import datetime
+    timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with job_order_start_time_lock:
+        job_order_start_time["timestamp"] = timestamp_str
+    save_job_order_start_time(timestamp_str)
+    print(f"New job order started at: {timestamp_str}")
+    return timestamp_str
+
+def check_all_processes_same_kitting():
+    """Check if all 9 processes have the same completed count (kitting value).
+    If they do, it means a job order is complete and we should reset the graph."""
+    try:
+        counts = []
+        for i in range(1, 10):
+            count = db_manager.get_completed_count(i)
+            counts.append(count)
+        
+        # Check if all counts are the same AND greater than 0
+        if len(set(counts)) == 1 and counts[0] > 0:
+            print(f"ALL PROCESSES REACHED SAME KITTING VALUE: {counts[0]} - Starting new job order for graph")
+            set_new_job_order_start()
+            return True
+        return False
+    except Exception as e:
+        print(f"Error checking all processes same kitting: {e}")
+        return False
 
 def save_timer_state_to_file():
     """Persist server timer and counter state to file"""
@@ -115,15 +204,18 @@ def check_daily_reset():
     
     with last_active_date_lock:
         if last_active_date["date"] is None:
-            # First run, just set the date
+            # First run, just set the date and save to file
             last_active_date["date"] = today
+            save_last_active_date(today)
             print(f"Daily reset check: First run, setting date to {today}")
             return False
         
         if last_active_date["date"] != today:
             # New day detected - perform full reset
             print(f"DAILY RESET TRIGGERED: New day detected ({last_active_date['date']} -> {today})")
+            old_date = last_active_date["date"]
             last_active_date["date"] = today
+            save_last_active_date(today)
             
             # Reset all server state
             with server_timers_lock:
@@ -150,7 +242,7 @@ def check_daily_reset():
             
             update_last_data_timestamp()
             
-            print("Daily reset completed: counters, manpower, and records cleared")
+            print(f"Daily reset completed: counters, manpower, and records cleared (was {old_date}, now {today})")
             return True
     return False
 
@@ -170,49 +262,6 @@ def clear_all_server_state():
         print(f"Error deleting timer state file: {e}")
     save_timer_state_to_file()
     print("All server timers, counters, and Arduino signals cleared")
-
-def check_and_auto_reset():
-    """Check if all 9 processes have the same completed count (>0).
-    If so, auto-reset records and counters but keep manpower."""
-    try:
-        counts = []
-        for i in range(1, 10):
-            counts.append(db_manager.get_completed_count(i))
-        # All must be > 0 and all must be equal
-        if all(c > 0 for c in counts) and len(set(counts)) == 1:
-            print(f"AUTO-RESET TRIGGERED: All 9 processes have {counts[0]} completed records")
-            # Reset database records (keeps manpower)
-            db_manager.reset_records_only()
-            # Clear server-side timers and counters
-            with server_timers_lock:
-                server_timers.clear()
-            with server_counters_lock:
-                server_counters.clear()
-            with arduino_signals_lock:
-                arduino_signals.clear()
-            try:
-                if os.path.exists(TIMER_STATE_FILE):
-                    os.remove(TIMER_STATE_FILE)
-            except:
-                pass
-            save_timer_state_to_file()
-            update_last_data_timestamp()
-            return True
-        return False
-    except Exception as e:
-        print(f"Error in check_and_auto_reset: {e}")
-        return False
-
-@app.route("/api/auto_reset_check", methods=["GET"])
-def auto_reset_check():
-    """API endpoint to check if all processes have the same completed count"""
-    try:
-        if check_and_auto_reset():
-            return jsonify({"success": True, "message": "Auto-reset triggered"})
-        else:
-            return jsonify({"success": False, "message": "No auto-reset needed"})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
 
 # This is the homepage route
 # When someone visits our website's main address, this code runs
@@ -342,6 +391,50 @@ def reset_all():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
+@app.route("/api/force_daily_reset", methods=["POST"])
+def force_daily_reset():
+    """Force a full daily reset - clears kitting, manpower, and graph data"""
+    try:
+        print("FORCE DAILY RESET: Manually triggered")
+        
+        # Reset all server state
+        with server_timers_lock:
+            server_timers.clear()
+        with server_counters_lock:
+            server_counters.clear()
+        with arduino_signals_lock:
+            arduino_signals.clear()
+        with server_blocked_counters_lock:
+            server_blocked_counters.clear()
+        with server_active_kittings_lock:
+            server_active_kittings.clear()
+        
+        # Delete timer state file
+        try:
+            if os.path.exists(TIMER_STATE_FILE):
+                os.remove(TIMER_STATE_FILE)
+        except:
+            pass
+        save_timer_state_to_file()
+        
+        # Reset database: counters, manpower, and records
+        result = db_manager.reset_all_for_new_day()
+        
+        # Update last active date
+        from datetime import datetime
+        today = datetime.now().strftime("%Y-%m-%d")
+        with last_active_date_lock:
+            last_active_date["date"] = today
+        save_last_active_date(today)
+        
+        update_last_data_timestamp()
+        
+        print(f"FORCE DAILY RESET: Completed, database result: {result}")
+        return jsonify({"success": True, "message": "Full daily reset completed", "db_result": result})
+    except Exception as e:
+        print(f"Error in force_daily_reset: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 # API Routes for data insertion
 @app.route("/api/start_process", methods=["POST"])
 def start_process():
@@ -414,11 +507,11 @@ def stop_process():
         update_last_data_timestamp()
         save_timer_state_to_file()
         
-        # Check if auto-reset should trigger
-        did_reset = check_and_auto_reset()
+        # Check if all processes have same kitting (new job order complete - reset graph)
+        check_all_processes_same_kitting()
         
         if record_id:
-            return jsonify({"success": True, "record_id": record_id, "auto_reset": did_reset})
+            return jsonify({"success": True, "record_id": record_id})
         else:
             return jsonify({"success": False, "error": "Failed to insert record"}), 500
     except Exception as e:
@@ -480,11 +573,11 @@ def ng_process():
         update_last_data_timestamp()
         save_timer_state_to_file()
         
-        # Check if auto-reset should trigger
-        did_reset = check_and_auto_reset()
+        # Check if all processes have same kitting (new job order complete - reset graph)
+        check_all_processes_same_kitting()
         
         if record_id:
-            return jsonify({"success": True, "record_id": record_id, "auto_reset": did_reset})
+            return jsonify({"success": True, "record_id": record_id})
         else:
             return jsonify({"success": False, "error": "Failed to insert record"}), 500
     except Exception as e:
@@ -531,11 +624,11 @@ def ng_lineout_process():
         update_last_data_timestamp()
         save_timer_state_to_file()
         
-        # Check if auto-reset should trigger
-        did_reset = check_and_auto_reset()
+        # Check if all processes have same kitting (new job order complete - reset graph)
+        check_all_processes_same_kitting()
         
         if record_id:
-            return jsonify({"success": True, "record_id": record_id, "auto_reset": did_reset})
+            return jsonify({"success": True, "record_id": record_id})
         else:
             return jsonify({"success": False, "error": "Failed to insert record"}), 500
     except Exception as e:
@@ -580,11 +673,11 @@ def lineout_process():
         update_last_data_timestamp()
         save_timer_state_to_file()
         
-        # Check if auto-reset should trigger
-        did_reset = check_and_auto_reset()
+        # Check if all processes have same kitting (new job order complete - reset graph)
+        check_all_processes_same_kitting()
         
         if record_id:
-            return jsonify({"success": True, "record_id": record_id, "auto_reset": did_reset})
+            return jsonify({"success": True, "record_id": record_id})
         else:
             return jsonify({"success": False, "error": "Failed to insert record"}), 500
     except Exception as e:
@@ -800,11 +893,27 @@ def get_line_trend_data():
             name = mp.get('operator_manual', '') or mp.get('operator_scan', '') or ''
             operator_map[mp['process_no']] = name
         
+        # Get job order start time for filtering (graph resets when all processes have same kitting)
+        # Only use if it's a valid timestamp from today
+        start_time = None
+        with job_order_start_time_lock:
+            saved_time = job_order_start_time.get("timestamp")
+            if saved_time:
+                from datetime import datetime
+                try:
+                    saved_dt = datetime.strptime(saved_time, "%Y-%m-%d %H:%M:%S")
+                    today = datetime.now().date()
+                    # Only use timestamp if it's from today (not stale/future)
+                    if saved_dt.date() == today:
+                        start_time = saved_time
+                except:
+                    pass
+        
         # Build data for all 9 processes
         # Fixed values for all processes: TACT TIME = 1.50, (+) TOL = 1.65, (-) TOL = 1.35
         trend_data = []
         for i in range(1, 10):
-            records = db_manager.get_line_trend_data(i, limit=10)
+            records = db_manager.get_line_trend_data(i, limit=10, after_timestamp=start_time)
             completed_count = db_manager.get_completed_count(i)
             trend_data.append({
                 'process_no': i,
@@ -1004,11 +1113,8 @@ def in_line_process():
         update_last_data_timestamp()
         save_timer_state_to_file()
         
-        # Check if auto-reset should trigger
-        did_reset = check_and_auto_reset()
-        
         if record_id:
-            return jsonify({"success": True, "record_id": record_id, "auto_reset": did_reset})
+            return jsonify({"success": True, "record_id": record_id})
         else:
             return jsonify({"success": False, "error": "Failed to insert record"}), 500
     except Exception as e:
@@ -1151,10 +1257,9 @@ def stop_repaired_process():
         
         update_last_data_timestamp()
         save_timer_state_to_file()
-        did_reset = check_and_auto_reset()
         
         if record_id:
-            return jsonify({"success": True, "record_id": record_id, "auto_reset": did_reset})
+            return jsonify({"success": True, "record_id": record_id})
         else:
             return jsonify({"success": False, "error": "Failed to insert record"}), 500
     except Exception as e:
@@ -1247,9 +1352,6 @@ def receive_arduino_signal():
                 
                 update_last_data_timestamp()
                 save_timer_state_to_file()
-                
-                # Check if auto-reset should trigger
-                check_and_auto_reset()
                 
                 print(f"ARDUINO: Server-side timer STOPPED for Process {process_no}, Kitting {kitting_no}, Elapsed {elapsed_time_str}, Record ID: {record_id}")
             else:
@@ -1645,6 +1747,13 @@ if __name__ == "__main__":
     
     # Load persisted timer state from file (survives Flask restarts)
     load_timer_state_from_file()
+    
+    # Load last active date from file and check for daily reset
+    load_last_active_date()
+    check_daily_reset()
+    
+    # Load job order start time from file (for graph filtering)
+    load_job_order_start_time()
     
     # Auto-start Arduino bridge only in the reloader child process
     # (Flask debug=True runs __main__ twice; this prevents double-launch)
